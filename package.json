@@ -1,0 +1,17 @@
+{
+  "name": "nms-project",
+  "version": "1.0.0",
+  "description": "Network Management System - Single Command Startup",
+  "scripts": {
+    "start": "cd mern-nms && npm start",
+    "dev": "cd mern-nms && npm run dev",
+    "install-all": "cd mern-nms && npm install && cd backend && npm install && cd ../frontend && npm install",
+    "setup": "npm run install-all",
+    "clean": "cd mern-nms && npm run clean",
+    "start-db": "cd mern-nms && docker run -d --name nms-mongodb-standalone -p 27017:27017 -e MONGO_INITDB_ROOT_USERNAME=admin -e MONGO_INITDB_ROOT_PASSWORD=password123 -e MONGO_INITDB_DATABASE=nms_db -v \"$(pwd)/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro\" mongo:7-jammy",
+    "stop-db": "docker stop nms-mongodb-standalone && docker rm nms-mongodb-standalone"
+  },
+  "keywords": ["nms", "network-management", "mern", "mininet"],
+  "author": "NMS Team",
+  "license": "MIT"
+}

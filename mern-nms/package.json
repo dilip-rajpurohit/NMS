@@ -1,0 +1,30 @@
+{
+  "name": "mern-nms-root",
+  "version": "1.0.0",
+  "description": "MERN Stack Network Management System - Root Package",
+  "scripts": {
+    "install-all": "cd backend && npm install && cd ../frontend && npm install",
+    "dev": "concurrently --prefix-colors=\"bgBlue.bold,bgMagenta.bold\" \"cd backend && npm run dev\" \"cd frontend && npm start\"",
+    "start": "npm run dev",
+    "backend": "cd backend && npm run dev",
+    "frontend": "cd frontend && npm start",
+    "build": "cd frontend && npm run build",
+    "test": "cd backend && npm test && cd ../frontend && npm test",
+    "clean": "rm -rf backend/node_modules frontend/node_modules node_modules",
+    "setup": "npm install && npm run install-all"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "keywords": [
+    "nms",
+    "network-management",
+    "mern",
+    "mongodb",
+    "express",
+    "react",
+    "nodejs"
+  ],
+  "author": "NMS Team",
+  "license": "MIT"
+}
