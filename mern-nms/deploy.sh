@@ -12,6 +12,18 @@ BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Non-interactive mode flag
+NON_INTERACTIVE=false
+
+# Check for non-interactive flag
+if [[ "$1" == "--non-interactive" || "$1" == "-n" ]]; then
+    NON_INTERACTIVE=true
+    print_info() {
+        echo -e "${BLUE}ℹ️  $1${NC}"
+    }
+    print_info "Running in non-interactive mode with default values"
+fi
+
 # Print colored output
 print_info() {
     echo -e "${BLUE}ℹ️  $1${NC}"
@@ -36,6 +48,27 @@ print_header() {
     echo "======================================"
     echo -e "${NC}"
 }
+
+# Show usage information
+show_usage() {
+    echo "NMS Easy Deployment Script"
+    echo "Usage: $0 [OPTIONS]"
+    echo
+    echo "Options:"
+    echo "  -n, --non-interactive    Run in non-interactive mode with default values"
+    echo "  -h, --help              Show this help message"
+    echo
+    echo "Examples:"
+    echo "  $0                      Run in interactive mode (prompts for passwords and email)"
+    echo "  $0 --non-interactive    Run with auto-generated passwords and default email"
+    echo
+}
+
+# Check for help flag
+if [[ "$1" == "--help" || "$1" == "-h" ]]; then
+    show_usage
+    exit 0
+fi
 
 # Check if docker and docker-compose are installed
 check_dependencies() {
@@ -94,25 +127,67 @@ create_env_file() {
     echo
     
     # Ask for IP address
-    echo -n "Enter server IP address or domain name (detected: $detected_ip) [press Enter to use detected]: "
-    read user_ip
-    local server_ip=${user_ip:-$detected_ip}
+    if [[ "$NON_INTERACTIVE" == "true" ]]; then
+        local server_ip=$detected_ip
+        print_info "Using detected IP address: $server_ip"
+    else
+        echo -n "Enter server IP address or domain name (detected: $detected_ip) [press Enter to use detected]: "
+        read user_ip
+        local server_ip=${user_ip:-$detected_ip}
+    fi
     
     # Ask for ports
-    echo -n "Enter frontend port (default: 3000): "
-    read frontend_port
-    frontend_port=${frontend_port:-3000}
-    
-    echo -n "Enter backend port (default: 5000): "
-    read backend_port
-    backend_port=${backend_port:-5000}
+    if [[ "$NON_INTERACTIVE" == "true" ]]; then
+        frontend_port=3000
+        backend_port=5000
+        print_info "Using default ports - Frontend: $frontend_port, Backend: $backend_port"
+    else
+        echo -n "Enter frontend port (default: 3000): "
+        read frontend_port
+        frontend_port=${frontend_port:-3000}
+        
+        echo -n "Enter backend port (default: 5000): "
+        read backend_port
+        backend_port=${backend_port:-5000}
+    fi
     
     # Generate secure JWT secret
     local jwt_secret=$(openssl rand -hex 32 2>/dev/null || echo "$(date +%s | sha256sum | head -c 64)")
     
-    # Generate secure passwords
-    local mongo_password=$(openssl rand -hex 16 2>/dev/null || echo "secure_mongo_$(date +%s)")
-    local admin_password=$(openssl rand -hex 12 2>/dev/null || echo "admin_$(date +%s)")
+    # Ask for passwords and email instead of generating them
+    if [[ "$NON_INTERACTIVE" == "true" ]]; then
+        local mongo_password="secure_mongo_$(date +%s)"
+        local admin_password="admin_$(date +%s)"
+        local admin_email="admin@$server_ip"
+        print_warning "Using auto-generated passwords and default email in non-interactive mode"
+    else
+        echo
+        print_info "Setting up credentials..."
+        echo -n "Enter MongoDB root password: "
+        read -s mongo_password
+        echo
+        while [[ -z "$mongo_password" ]]; do
+            echo -n "MongoDB password cannot be empty. Please enter MongoDB root password: "
+            read -s mongo_password
+            echo
+        done
+        
+        echo -n "Enter admin user password: "
+        read -s admin_password
+        echo
+        while [[ -z "$admin_password" ]]; do
+            echo -n "Admin password cannot be empty. Please enter admin user password: "
+            read -s admin_password
+            echo
+        done
+        
+        echo -n "Enter admin email address: "
+        read admin_email
+        while [[ -z "$admin_email" ]]; do
+            echo -n "Email cannot be empty. Please enter admin email address: "
+            read admin_email
+        done
+    fi
     
     # Create .env file
     cp .env.template .env
@@ -124,7 +199,7 @@ create_env_file() {
     sed -i "s/JWT_SECRET=your-secure-jwt-secret-here-change-this-for-production/JWT_SECRET=$jwt_secret/g" .env
     sed -i "s/MONGO_ROOT_PASSWORD=your-secure-password-here/MONGO_ROOT_PASSWORD=$mongo_password/g" .env
     sed -i "s/ADMIN_PASSWORD=your-secure-admin-password/ADMIN_PASSWORD=$admin_password/g" .env
-    sed -i "s/ADMIN_EMAIL=admin@yourdomain.com/ADMIN_EMAIL=admin@$server_ip/g" .env
+    sed -i "s/ADMIN_EMAIL=admin@yourdomain.com/ADMIN_EMAIL=$admin_email/g" .env
     
     print_success "Environment file created successfully"
     
@@ -150,7 +225,7 @@ Backend API: http://$server_ip:$backend_port
 Admin Credentials:
 - Username: admin
 - Password: $admin_password
-- Email: admin@$server_ip
+- Email: $admin_email
 
 MongoDB Credentials:
 - Username: admin
@@ -177,14 +252,44 @@ deploy_application() {
     print_info "Building and starting services..."
     if docker compose version &> /dev/null; then
         docker compose up -d --build --force-recreate
+        # Wait and check if containers are running
+        sleep 5
+        print_info "Checking container status..."
+        if ! docker compose ps | grep -q "Up"; then
+            print_warning "Some containers may not have started properly. Attempting restart..."
+            docker compose restart
+            sleep 10
+        fi
     elif command -v docker-compose &> /dev/null; then
         docker-compose up -d --build --force-recreate
+        # Wait and check if containers are running
+        sleep 5
+        print_info "Checking container status..."
+        if ! docker-compose ps | grep -q "Up"; then
+            print_warning "Some containers may not have started properly. Attempting restart..."
+            docker-compose restart
+            sleep 10
+        fi
     else
         print_error "Neither docker-compose nor docker compose found!"
         exit 1
     fi
     
-    print_success "Application deployed successfully!"
+    # Final check for container health
+    local retry_count=0
+    local max_retries=3
+    while [[ $retry_count -lt $max_retries ]]; do
+        if docker ps --format "table {{.Names}}\t{{.Status}}" | grep -E "(nms-backend|nms-frontend|nms-mongodb)" | grep -q "Up"; then
+            print_success "Application deployed successfully!"
+            return 0
+        else
+            print_warning "Containers not fully started yet. Retry $((retry_count + 1))/$max_retries..."
+            sleep 10
+            ((retry_count++))
+        fi
+    done
+    
+    print_error "Some containers failed to start properly. Check logs with: docker-compose logs"
 }
 
 # Check application health
@@ -213,6 +318,8 @@ check_health() {
     fi
     
     echo
+    echo
+    echo
     print_success "=== DEPLOYMENT COMPLETE ==="
     echo
     print_info "Access your NMS application at:"
@@ -224,14 +331,29 @@ check_health() {
     echo "  🔑 Password: $(grep "ADMIN_PASSWORD=" .env | cut -d'=' -f2)"
     echo
     print_info "Useful commands:"
-    echo "  📊 View logs: docker-compose logs -f"
-    echo "  🔄 Restart: docker-compose restart"
-    echo "  🛑 Stop: docker-compose down"
+    echo "  📊 View logs: docker compose logs -f"
+    echo "  🔄 Restart: docker compose restart"
+    echo "  🛑 Stop: docker compose down"
     echo
 }
 
 # Main execution
 main() {
+    # Check for help flag
+    if [[ "$1" == "--help" || "$1" == "-h" ]]; then
+        echo "NMS Easy Deployment Script"
+        echo "Usage: $0 [OPTIONS]"
+        echo ""
+        echo "Options:"
+        echo "  -n, --non-interactive    Run in non-interactive mode with default values"
+        echo "  -h, --help              Show this help message"
+        echo ""
+        echo "Examples:"
+        echo "  $0                      # Interactive mode"
+        echo "  $0 -n                   # Non-interactive mode"
+        exit 0
+    fi
+    
     print_header
     
     check_dependencies
