@@ -12,16 +12,39 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
+
+// Configure allowed origins for CORS
+const allowedOrigins = [
+  process.env.FRONTEND_URL || "http://localhost:3000",
+  "http://localhost:3000",
+  "http://frontend:80",
+  "http://frontend",
+  `http://${process.env.IP || 'localhost'}:${process.env.FRONTEND_PORT || 3000}`,
+  `http://${process.env.IP || 'localhost'}:3000`
+];
+
 const io = socketIo(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
-    methods: ["GET", "POST", "PUT", "DELETE"]
+    origin: allowedOrigins,
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true
   }
 });
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:3000",
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      console.log('Allowed origins:', allowedOrigins);
+      return callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 app.use(express.json());
@@ -140,6 +163,7 @@ const metricsRoutes = require('./routes/metrics');
 const discoveryRoutes = require('./routes/discovery');
 const alertRoutes = require('./routes/alerts');
 const activityRoutes = require('./routes/activity');
+const adminRoutes = require('./routes/admin');
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -149,6 +173,7 @@ app.use('/api/metrics', metricsRoutes);
 app.use('/api/discovery', discoveryRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/activity', activityRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Enhanced health check endpoint
 app.get('/api/health', (req, res) => {

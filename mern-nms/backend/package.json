@@ -24,7 +24,8 @@
     "net-snmp": "^3.25.2",
     "node-cron": "^3.0.2",
     "ping": "^0.4.4",
-    "socket.io": "^4.7.2"
+    "socket.io": "^4.7.2",
+    "winston": "^3.11.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

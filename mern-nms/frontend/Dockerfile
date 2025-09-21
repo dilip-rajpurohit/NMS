@@ -13,33 +13,40 @@ RUN npm install
 # Copy source code
 COPY . .
 
+# Build arguments for environment variables
+ARG REACT_APP_API_URL
+ARG REACT_APP_WS_URL
+ARG REACT_APP_ENV=production
+
+# Set environment variables during build
+ENV REACT_APP_API_URL=${REACT_APP_API_URL}
+ENV REACT_APP_WS_URL=${REACT_APP_WS_URL}
+ENV REACT_APP_ENV=${REACT_APP_ENV}
+ENV GENERATE_SOURCEMAP=false
+
 # Build the application
 RUN npm run build
 
 # Production stage
 FROM nginx:alpine
 
-# Copy built application
+# Copy built application and nginx config template
 COPY --from=build /usr/src/app/build /usr/share/nginx/html
+COPY default.conf.template /etc/nginx/conf.d/default.conf.template
+COPY docker-entrypoint.sh /docker-entrypoint.sh
 
-# Copy custom nginx config
-COPY nginx.conf /etc/nginx/nginx.conf
+# Make entrypoint script executable
+RUN chmod +x /docker-entrypoint.sh
 
-# Change ownership to existing nginx user
-RUN chown -R nginx:nginx /usr/share/nginx/html
-RUN chown -R nginx:nginx /var/cache/nginx
-RUN chown -R nginx:nginx /var/log/nginx
-RUN chown -R nginx:nginx /etc/nginx/conf.d
-
-# Switch to non-root user
-USER nginx
+# Install gettext for envsubst
+RUN apk add --no-cache gettext
 
 # Expose port
-EXPOSE 3000
+EXPOSE 80
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost/health || exit 1
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Use custom entrypoint
+ENTRYPOINT ["/docker-entrypoint.sh"]

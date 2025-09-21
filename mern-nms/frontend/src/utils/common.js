@@ -196,3 +196,21 @@ export const EmptyState = ({ title, description, icon = 'fas fa-inbox', action }
     {action}
   </div>
 );
+
+/**
+ * Get Tailwind CSS classes for severity levels
+ * @param {string} severity - Severity level (critical, warning, info)
+ * @returns {string} Tailwind CSS class string
+ */
+export const getSeverityColor = (severity) => {
+  switch (severity) {
+    case 'critical':
+      return 'text-red-600 bg-red-100';
+    case 'warning':
+      return 'text-yellow-600 bg-yellow-100';
+    case 'info':
+      return 'text-blue-600 bg-blue-100';
+    default:
+      return 'text-gray-600 bg-gray-100';
+  }
+};

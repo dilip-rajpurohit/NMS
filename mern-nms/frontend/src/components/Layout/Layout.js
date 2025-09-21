@@ -6,7 +6,7 @@ import Header from './Header';
 import Dashboard from '../Dashboard/Dashboard';
 import Topology from '../Dashboard/Topology';
 import Devices from '../Dashboard/Devices';
-import Alerts from '../Dashboard/Alerts';
+import Alerts from '../Alerts';
 import Discovery from '../Dashboard/Discovery';
 
 // Lazy load admin and profile components

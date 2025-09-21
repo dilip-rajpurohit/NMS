@@ -1,0 +1,248 @@
+#!/bin/bash
+
+# NMS Easy Deployment Script
+# This script helps you deploy the NMS application easily
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Print colored output
+print_info() {
+    echo -e "${BLUE}ℹ️  $1${NC}"
+}
+
+print_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
+print_header() {
+    echo -e "${BLUE}"
+    echo "======================================"
+    echo "    NMS Easy Deployment Script"
+    echo "======================================"
+    echo -e "${NC}"
+}
+
+# Check if docker and docker-compose are installed
+check_dependencies() {
+    print_info "Checking dependencies..."
+    
+    if ! command -v docker &> /dev/null; then
+        print_error "Docker is not installed. Please install Docker first."
+        exit 1
+    fi
+    
+    if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
+        print_error "Docker Compose is not installed. Please install Docker Compose first."
+        exit 1
+    fi
+    
+    print_success "Dependencies check passed"
+}
+
+# Get server IP automatically
+get_server_ip() {
+    # Try to get the primary network interface IP
+    local ip=$(ip route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+' || echo "")
+    
+    if [[ -z "$ip" ]]; then
+        # Fallback: try hostname -I
+        ip=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "")
+    fi
+    
+    if [[ -z "$ip" ]]; then
+        # Final fallback
+        ip="localhost"
+    fi
+    
+    echo "$ip"
+}
+
+# Create .env file from template
+create_env_file() {
+    print_info "Setting up environment configuration..."
+    
+    if [[ -f ".env" ]]; then
+        print_warning ".env file already exists. Creating backup..."
+        cp .env .env.backup.$(date +%Y%m%d_%H%M%S)
+    fi
+    
+    if [[ ! -f ".env.template" ]]; then
+        print_error ".env.template file not found. Please make sure you're in the correct directory."
+        exit 1
+    fi
+    
+    # Get server IP
+    local detected_ip=$(get_server_ip)
+    
+    echo
+    print_info "Setting up deployment configuration..."
+    echo
+    
+    # Ask for IP address
+    echo -n "Enter server IP address or domain name (detected: $detected_ip) [press Enter to use detected]: "
+    read user_ip
+    local server_ip=${user_ip:-$detected_ip}
+    
+    # Ask for ports
+    echo -n "Enter frontend port (default: 3000): "
+    read frontend_port
+    frontend_port=${frontend_port:-3000}
+    
+    echo -n "Enter backend port (default: 5000): "
+    read backend_port
+    backend_port=${backend_port:-5000}
+    
+    # Generate secure JWT secret
+    local jwt_secret=$(openssl rand -hex 32 2>/dev/null || echo "$(date +%s | sha256sum | head -c 64)")
+    
+    # Generate secure passwords
+    local mongo_password=$(openssl rand -hex 16 2>/dev/null || echo "secure_mongo_$(date +%s)")
+    local admin_password=$(openssl rand -hex 12 2>/dev/null || echo "admin_$(date +%s)")
+    
+    # Create .env file
+    cp .env.template .env
+    
+    # Replace values in .env file
+    sed -i "s/IP=localhost/IP=$server_ip/g" .env
+    sed -i "s/FRONTEND_PORT=3000/FRONTEND_PORT=$frontend_port/g" .env
+    sed -i "s/BACKEND_PORT=5000/BACKEND_PORT=$backend_port/g" .env
+    sed -i "s/JWT_SECRET=your-secure-jwt-secret-here-change-this-for-production/JWT_SECRET=$jwt_secret/g" .env
+    sed -i "s/MONGO_ROOT_PASSWORD=your-secure-password-here/MONGO_ROOT_PASSWORD=$mongo_password/g" .env
+    sed -i "s/ADMIN_PASSWORD=your-secure-admin-password/ADMIN_PASSWORD=$admin_password/g" .env
+    sed -i "s/ADMIN_EMAIL=admin@yourdomain.com/ADMIN_EMAIL=admin@$server_ip/g" .env
+    
+    print_success "Environment file created successfully"
+    
+    echo
+    print_info "=== DEPLOYMENT CONFIGURATION ==="
+    echo "Server IP/Domain: $server_ip"
+    echo "Frontend URL: http://$server_ip:$frontend_port"
+    echo "Backend API: http://$server_ip:$backend_port"
+    echo "Admin Username: admin"
+    echo "Admin Password: $admin_password"
+    echo "=================================="
+    echo
+    
+    # Save credentials to a file
+    cat > deployment_info.txt << EOF
+NMS Deployment Information
+=========================
+Deployment Date: $(date)
+Server IP/Domain: $server_ip
+Frontend URL: http://$server_ip:$frontend_port
+Backend API: http://$server_ip:$backend_port
+
+Admin Credentials:
+- Username: admin
+- Password: $admin_password
+- Email: admin@$server_ip
+
+MongoDB Credentials:
+- Username: admin
+- Password: $mongo_password
+
+Security:
+- JWT Secret: $jwt_secret
+
+IMPORTANT: Keep this file secure and delete it after noting the credentials!
+EOF
+    
+    print_success "Deployment info saved to 'deployment_info.txt'"
+}
+
+# Deploy the application
+deploy_application() {
+    print_info "Deploying NMS application..."
+    
+    # Stop any existing containers
+    print_info "Stopping existing containers..."
+    docker compose down 2>/dev/null || docker-compose down 2>/dev/null || true
+    
+    # Build and start services
+    print_info "Building and starting services..."
+    if docker compose version &> /dev/null; then
+        docker compose up -d --build --force-recreate
+    elif command -v docker-compose &> /dev/null; then
+        docker-compose up -d --build --force-recreate
+    else
+        print_error "Neither docker-compose nor docker compose found!"
+        exit 1
+    fi
+    
+    print_success "Application deployed successfully!"
+}
+
+# Check application health
+check_health() {
+    print_info "Checking application health..."
+    
+    local server_ip=$(grep "IP=" .env | cut -d'=' -f2)
+    local frontend_port=$(grep "FRONTEND_PORT=" .env | cut -d'=' -f2)
+    local backend_port=$(grep "BACKEND_PORT=" .env | cut -d'=' -f2)
+    
+    # Wait a bit for services to start
+    sleep 10
+    
+    # Check backend health
+    if curl -f "http://localhost:$backend_port/api/health" >/dev/null 2>&1; then
+        print_success "Backend is healthy"
+    else
+        print_warning "Backend health check failed (this is normal if still starting up)"
+    fi
+    
+    # Check frontend
+    if curl -f "http://localhost:$frontend_port/health" >/dev/null 2>&1; then
+        print_success "Frontend is healthy"
+    else
+        print_warning "Frontend health check failed (this is normal if still starting up)"
+    fi
+    
+    echo
+    print_success "=== DEPLOYMENT COMPLETE ==="
+    echo
+    print_info "Access your NMS application at:"
+    echo "  🌐 Frontend: http://$server_ip:$frontend_port"
+    echo "  🔧 Backend API: http://$server_ip:$backend_port/api"
+    echo
+    print_info "Admin login credentials:"
+    echo "  👤 Username: admin"
+    echo "  🔑 Password: $(grep "ADMIN_PASSWORD=" .env | cut -d'=' -f2)"
+    echo
+    print_info "Useful commands:"
+    echo "  📊 View logs: docker-compose logs -f"
+    echo "  🔄 Restart: docker-compose restart"
+    echo "  🛑 Stop: docker-compose down"
+    echo
+}
+
+# Main execution
+main() {
+    print_header
+    
+    check_dependencies
+    create_env_file
+    deploy_application
+    check_health
+    
+    echo
+    print_success "NMS deployment completed successfully! 🎉"
+    print_warning "Please secure the 'deployment_info.txt' file and consider deleting it after noting the credentials."
+}
+
+# Run the script
+main "$@"

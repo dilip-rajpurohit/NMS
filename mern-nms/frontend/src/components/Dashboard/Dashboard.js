@@ -3,6 +3,7 @@ import { Container, Row, Col, Card, Alert, Spinner, Badge } from 'react-bootstra
 import { useSocket } from '../../context/SocketContext';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
+import { formatTimestamp, getSeverityBadge } from '../../utils/common';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -194,7 +195,7 @@ const Dashboard = () => {
                       <div className="d-flex justify-content-between align-items-start">
                         <div>
                           <Badge 
-                            bg={alert.level === 'critical' ? 'danger' : alert.level === 'warning' ? 'warning' : 'info'}
+                            bg={getSeverityBadge(alert.level)}
                             className="me-2"
                           >
                             {alert.level}
@@ -202,7 +203,7 @@ const Dashboard = () => {
                           <span className="text-white">{alert.message}</span>
                         </div>
                         <small className="text-muted">
-                          {alert.timestamp ? new Date(alert.timestamp).toLocaleTimeString() : 'Unknown'}
+                          {formatTimestamp(alert.timestamp)}
                         </small>
                       </div>
                     </div>

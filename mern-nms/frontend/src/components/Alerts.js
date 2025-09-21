@@ -1,42 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { api } from '../lib/api';
+import api from '../services/api';
+import { formatTimestamp, getSeverityBadge, getSeverityColor } from '../utils/common';
 
-interface Alert {
-  alertId: string;
-  deviceId: string;
-  deviceName: string;
-  deviceIp: string;
-  deviceType: string;
-  type: string;
-  severity: 'critical' | 'warning' | 'info';
-  message: string;
-  timestamp: string;
-  acknowledged: boolean;
-  acknowledgedBy?: string;
-  resolvedAt?: string;
-}
-
-interface AlertStatistics {
-  totalAlerts: number;
-  criticalAlerts: number;
-  warningAlerts: number;
-  infoAlerts: number;
-  acknowledgedAlerts: number;
-  unacknowledgedAlerts: number;
-}
-
-const Alerts: React.FC = () => {
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [statistics, setStatistics] = useState<AlertStatistics | null>(null);
+const Alerts = () => {
+  const [alerts, setAlerts] = useState([]);
+  const [statistics, setStatistics] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(null);
   const [filters, setFilters] = useState({
     severity: 'all',
     acknowledged: 'all',
     page: 1,
     limit: 20
   });
-  const [selectedAlerts, setSelectedAlerts] = useState<string[]>([]);
+  const [selectedAlerts, setSelectedAlerts] = useState([]);
 
   const fetchAlerts = async () => {
     try {
@@ -45,7 +22,7 @@ const Alerts: React.FC = () => {
       setAlerts(response.data.alerts || []);
       setStatistics(response.data.statistics);
       setError(null);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error fetching alerts:', err);
       setError(err.response?.data?.message || 'Failed to fetch alerts');
     } finally {
@@ -57,31 +34,18 @@ const Alerts: React.FC = () => {
     fetchAlerts();
   }, [filters]);
 
-  const acknowledgeAlerts = async (alertIds: string[]) => {
+  const acknowledgeAlerts = async (alertIds) => {
     try {
       await api.post('/alerts/acknowledge', { alertIds });
       fetchAlerts(); // Refresh the alerts list
       setSelectedAlerts([]);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error acknowledging alerts:', err);
       setError(err.response?.data?.message || 'Failed to acknowledge alerts');
     }
   };
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'critical': return 'text-red-600 bg-red-100';
-      case 'warning': return 'text-yellow-600 bg-yellow-100';
-      case 'info': return 'text-blue-600 bg-blue-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  const formatTimestamp = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString();
-  };
-
-  const handleSelectAlert = (alertId: string) => {
+  const handleSelectAlert = (alertId) => {
     setSelectedAlerts(prev => 
       prev.includes(alertId) 
         ? prev.filter(id => id !== alertId)
