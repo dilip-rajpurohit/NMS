@@ -14,10 +14,33 @@ NC='\033[0m' # No Color
 
 # Non-interactive mode flag
 NON_INTERACTIVE=false
+PRESERVE_DATA=false
 
-# Check for non-interactive flag
-if [[ "$1" == "--non-interactive" || "$1" == "-n" ]]; then
-    NON_INTERACTIVE=true
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --non-interactive|-n)
+            NON_INTERACTIVE=true
+            shift
+            ;;
+        --preserve-data|-p)
+            PRESERVE_DATA=true
+            shift
+            ;;
+        --help|-h)
+            # Help will be handled later in main function
+            break
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# Initialize print functions after parsing
+if [[ "$NON_INTERACTIVE" == "true" ]]; then
     print_info() {
         echo -e "${BLUE}ℹ️  $1${NC}"
     }
@@ -56,11 +79,17 @@ show_usage() {
     echo
     echo "Options:"
     echo "  -n, --non-interactive    Run in non-interactive mode with default values"
+    echo "  -p, --preserve-data      Preserve existing MongoDB data (may cause auth issues)"
     echo "  -h, --help              Show this help message"
     echo
     echo "Examples:"
     echo "  $0                      Run in interactive mode (prompts for passwords and email)"
     echo "  $0 --non-interactive    Run with auto-generated passwords and default email"
+    echo "  $0 --preserve-data      Keep existing database data (use with caution)"
+    echo "  $0 -n -p               Non-interactive mode with data preservation"
+    echo
+    echo "Note: By default, MongoDB volumes are cleaned to prevent authentication conflicts."
+    echo "      Use --preserve-data only if you want to keep existing database content."
     echo
 }
 
@@ -247,6 +276,21 @@ deploy_application() {
     # Stop any existing containers
     print_info "Stopping existing containers..."
     docker compose down 2>/dev/null || docker-compose down 2>/dev/null || true
+    
+    # Remove existing MongoDB volume to prevent authentication conflicts
+    if [[ "$PRESERVE_DATA" == "true" ]]; then
+        print_warning "Preserving existing MongoDB data as requested"
+        print_warning "Note: This may cause authentication issues if credentials have changed"
+    else
+        print_info "Cleaning up existing MongoDB data to prevent credential conflicts..."
+        if docker volume ls | grep -q "mern-nms_mongodb_data"; then
+            print_warning "Removing existing MongoDB volume to ensure clean database initialization..."
+            docker volume rm mern-nms_mongodb_data 2>/dev/null || true
+            print_success "MongoDB volume cleaned up successfully"
+        else
+            print_info "No existing MongoDB volume found"
+        fi
+    fi
     
     # Build and start services
     print_info "Building and starting services..."
