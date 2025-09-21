@@ -116,22 +116,42 @@ check_dependencies() {
     print_success "Dependencies check passed"
 }
 
-# Get server IP automatically
+# Get server IP automatically with better network detection
 get_server_ip() {
     # Try to get the primary network interface IP
-    local ip=$(ip route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+' || echo "")
+    local primary_ip=$(ip route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+' || echo "")
     
-    if [[ -z "$ip" ]]; then
+    if [[ -z "$primary_ip" ]]; then
         # Fallback: try hostname -I
-        ip=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "")
+        primary_ip=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "")
     fi
     
-    if [[ -z "$ip" ]]; then
+    if [[ -z "$primary_ip" ]]; then
         # Final fallback
-        ip="localhost"
+        primary_ip="localhost"
     fi
     
-    echo "$ip"
+    echo "$primary_ip"
+}
+
+# Show available network interfaces
+show_network_interfaces() {
+    print_info "Available network interfaces:"
+    echo
+    
+    # Get all network interfaces with IPs
+    local interfaces=$(ip addr show | grep -E "inet [0-9]" | grep -v "127.0.0.1" | awk '{print $2}' | cut -d'/' -f1)
+    local count=1
+    
+    echo "0) localhost (local access only)"
+    
+    for interface_ip in $interfaces; do
+        local interface_name=$(ip addr show | grep -B2 "inet $interface_ip" | grep "^[0-9]" | awk '{print $2}' | cut -d':' -f1)
+        echo "$count) $interface_ip ($interface_name - for network access)"
+        ((count++))
+    done
+    
+    echo
 }
 
 # Create .env file from template
@@ -160,9 +180,32 @@ create_env_file() {
         local server_ip=$detected_ip
         print_info "Using detected IP address: $server_ip"
     else
+        print_info "Network Configuration for Multi-Device Access:"
+        echo
+        show_network_interfaces
+        
+        echo "For access from other devices on the network, choose a network IP (not localhost)."
+        echo "Localhost (127.0.0.1) will only allow access from this machine."
+        echo
         echo -n "Enter server IP address or domain name (detected: $detected_ip) [press Enter to use detected]: "
         read user_ip
         local server_ip=${user_ip:-$detected_ip}
+        
+        # Ask if user wants to allow all CORS origins for easier development
+        echo
+        echo "CORS Configuration:"
+        echo "For easier development/testing, you can allow connections from any IP address."
+        echo "This is less secure but convenient for development environments."
+        echo -n "Allow connections from any IP address? (y/N): "
+        read allow_all_cors
+        
+        if [[ "$allow_all_cors" =~ ^[Yy]$ ]]; then
+            allow_all_origins="true"
+            print_warning "CORS set to allow all origins - suitable for development only!"
+        else
+            allow_all_origins="false"
+            print_info "CORS restricted to specific origins for security"
+        fi
     fi
     
     # Ask for ports
@@ -229,6 +272,7 @@ create_env_file() {
     sed -i "s/MONGO_ROOT_PASSWORD=your-secure-password-here/MONGO_ROOT_PASSWORD=$mongo_password/g" .env
     sed -i "s/ADMIN_PASSWORD=your-secure-admin-password/ADMIN_PASSWORD=$admin_password/g" .env
     sed -i "s/ADMIN_EMAIL=admin@yourdomain.com/ADMIN_EMAIL=$admin_email/g" .env
+    sed -i "s/ALLOW_ALL_ORIGINS=false/ALLOW_ALL_ORIGINS=${allow_all_origins:-false}/g" .env
     
     print_success "Environment file created successfully"
     

@@ -20,12 +20,19 @@ const allowedOrigins = [
   "http://frontend:80",
   "http://frontend",
   `http://${process.env.IP || 'localhost'}:${process.env.FRONTEND_PORT || 3000}`,
-  `http://${process.env.IP || 'localhost'}:3000`
+  `http://${process.env.IP || 'localhost'}:3000`,
+  // Allow access from local network (192.168.x.x and 10.x.x.x ranges)
+  /^http:\/\/192\.168\.\d+\.\d+:(3000|80)$/,
+  /^http:\/\/10\.\d+\.\d+\.\d+:(3000|80)$/,
+  /^http:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+:(3000|80)$/
 ];
+
+// Check if we should allow all origins (for development)
+const allowAllOrigins = process.env.ALLOW_ALL_ORIGINS === 'true';
 
 const io = socketIo(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: allowAllOrigins ? true : allowedOrigins,
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
   }
@@ -37,7 +44,22 @@ app.use(cors({
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
     
-    if (allowedOrigins.includes(origin)) {
+    // If ALLOW_ALL_ORIGINS is true, allow all origins
+    if (allowAllOrigins) {
+      return callback(null, true);
+    }
+    
+    // Check if origin matches any allowed origins (including regex patterns)
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      if (typeof allowedOrigin === 'string') {
+        return allowedOrigin === origin;
+      } else if (allowedOrigin instanceof RegExp) {
+        return allowedOrigin.test(origin);
+      }
+      return false;
+    });
+    
+    if (isAllowed) {
       return callback(null, true);
     } else {
       console.log('CORS blocked origin:', origin);
