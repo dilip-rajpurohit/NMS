@@ -7,7 +7,7 @@ server {
     add_header X-Content-Type-Options nosniff;
     add_header X-XSS-Protection "1; mode=block";
     add_header Referrer-Policy "strict-origin-when-cross-origin";
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http://${BACKEND_HOST}:${BACKEND_PORT} ws://${BACKEND_HOST}:${BACKEND_PORT} http://localhost:${BACKEND_PORT} ws://localhost:${BACKEND_PORT} http://10.87.114.68:${BACKEND_PORT} ws://10.87.114.68:${BACKEND_PORT};";
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http://${BACKEND_HOST}:${BACKEND_PORT} ws://${BACKEND_HOST}:${BACKEND_PORT} http://localhost:${BACKEND_PORT} ws://localhost:${BACKEND_PORT} http://${SERVER_IP}:${BACKEND_PORT} ws://${SERVER_IP}:${BACKEND_PORT};";
 
     root /usr/share/nginx/html;
     index index.html index.htm;

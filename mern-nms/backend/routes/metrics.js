@@ -1,10 +1,7 @@
 const express = require('express');
+const Device = require('../models/Device');
+const { authenticateToken } = require('../middleware/auth');
 const router = express.Router();
-
-// Middleware to authenticate requests
-const authenticateToken = (req, res, next) => {
-  next();
-};
 
 // Get device metrics
 router.get('/devices/:deviceId', authenticateToken, async (req, res) => {
@@ -12,26 +9,32 @@ router.get('/devices/:deviceId', authenticateToken, async (req, res) => {
     const { deviceId } = req.params;
     const { timeRange = '1h' } = req.query;
 
-    // Mock metrics data for now
-    // In production, this would query a time-series database like InfluxDB
-    const mockMetrics = {
+    const device = await Device.findById(deviceId);
+    if (!device) {
+      return res.status(404).json({ error: 'Device not found' });
+    }
+
+    // Return real device metrics
+    const deviceMetrics = {
       deviceId,
+      deviceName: device.name,
+      ipAddress: device.ipAddress,
       timeRange,
-      cpu: generateMockTimeSeries('cpu', timeRange),
-      memory: generateMockTimeSeries('memory', timeRange),
-      network: generateMockTimeSeries('network', timeRange),
-      interfaces: [
-        {
-          name: 'eth0',
-          inBytes: generateMockTimeSeries('bytes', timeRange),
-          outBytes: generateMockTimeSeries('bytes', timeRange),
-          inPackets: generateMockTimeSeries('packets', timeRange),
-          outPackets: generateMockTimeSeries('packets', timeRange)
-        }
-      ]
+      status: device.status,
+      lastSeen: device.metrics?.lastSeen,
+      responseTime: device.metrics?.responseTime || 0,
+      uptime: device.metrics?.uptime || 0,
+      interfaces: device.interfaces || [],
+      snmpData: device.snmpData || {},
+      // Real-time metrics would come from SNMP polling
+      realTimeData: {
+        cpuUsage: device.metrics?.cpuUsage || 0,
+        memoryUsage: device.metrics?.memoryUsage || 0,
+        networkUtilization: device.metrics?.networkUtilization || 0
+      }
     };
 
-    res.json(mockMetrics);
+    res.json(deviceMetrics);
   } catch (error) {
     console.error('Get device metrics error:', error);
     res.status(500).json({
@@ -46,21 +49,47 @@ router.get('/overview', authenticateToken, async (req, res) => {
   try {
     const { timeRange = '1h' } = req.query;
 
-    const mockOverview = {
+    // Get real device statistics
+    const totalDevices = await Device.countDocuments({ isActive: true });
+    const onlineDevices = await Device.countDocuments({ 
+      isActive: true, 
+      status: { $in: ['online', 'up'] } 
+    });
+    const offlineDevices = totalDevices - onlineDevices;
+
+    // Count real alerts
+    const alertsData = await Device.aggregate([
+      { $match: { isActive: true } },
+      { $unwind: { path: '$alerts', preserveNullAndEmptyArrays: true } },
+      { $match: { 'alerts.acknowledged': false } },
+      { $count: 'totalAlerts' }
+    ]);
+    const totalAlerts = alertsData.length > 0 ? alertsData[0].totalAlerts : 0;
+
+    // Get top devices by network utilization (if available)
+    const topDevices = await Device.find({ 
+      isActive: true,
+      'metrics.networkUtilization': { $exists: true }
+    })
+    .sort({ 'metrics.networkUtilization': -1 })
+    .limit(5)
+    .select('name metrics.networkUtilization ipAddress');
+
+    const overview = {
       timeRange,
-      totalBandwidth: generateMockTimeSeries('bandwidth', timeRange),
-      totalDevices: 15,
-      onlineDevices: 12,
-      offlineDevices: 3,
-      alerts: 2,
-      topTalkers: [
-        { device: 'Switch-01', traffic: '1.2 Gbps' },
-        { device: 'Router-01', traffic: '850 Mbps' },
-        { device: 'Server-01', traffic: '650 Mbps' }
-      ]
+      totalDevices,
+      onlineDevices,
+      offlineDevices,
+      alerts: totalAlerts,
+      topTalkers: topDevices.map(device => ({
+        device: device.name,
+        ipAddress: device.ipAddress,
+        utilization: `${device.metrics?.networkUtilization || 0}%`
+      })),
+      lastUpdate: new Date()
     };
 
-    res.json(mockOverview);
+    res.json(overview);
   } catch (error) {
     console.error('Get overview metrics error:', error);
     res.status(500).json({
@@ -70,82 +99,57 @@ router.get('/overview', authenticateToken, async (req, res) => {
   }
 });
 
-// Helper function to generate mock time series data
-function generateMockTimeSeries(type, timeRange) {
-  const now = Date.now();
-  const points = [];
-  let interval, count;
-
-  switch (timeRange) {
-    case '1h':
-      interval = 60000; // 1 minute
-      count = 60;
-      break;
-    case '6h':
-      interval = 360000; // 6 minutes
-      count = 60;
-      break;
-    case '24h':
-      interval = 1440000; // 24 minutes
-      count = 60;
-      break;
-    default:
-      interval = 60000;
-      count = 60;
-  }
-
-  for (let i = count; i >= 0; i--) {
-    const timestamp = now - (i * interval);
-    let value;
-
-    switch (type) {
-      case 'cpu':
-        value = Math.random() * 100;
-        break;
-      case 'memory':
-        value = 60 + Math.random() * 30;
-        break;
-      case 'network':
-      case 'bandwidth':
-        value = Math.random() * 1000;
-        break;
-      case 'bytes':
-        value = Math.random() * 1000000;
-        break;
-      case 'packets':
-        value = Math.random() * 10000;
-        break;
-      default:
-        value = Math.random() * 100;
-    }
-
-    points.push({
-      timestamp,
-      value: Math.round(value * 100) / 100
-    });
-  }
-
-  return points;
-}
+module.exports = router;
 
 // Enhanced dashboard metrics endpoint
 router.get('/dashboard', authenticateToken, async (req, res) => {
   try {
+    // Get real statistics from database
+    const totalDevices = await Device.countDocuments({ isActive: true });
+    const activeDevices = await Device.countDocuments({ 
+      isActive: true, 
+      status: { $in: ['online', 'up'] } 
+    });
+
+    // Count alerts by severity
+    const alertStats = await Device.aggregate([
+      { $match: { isActive: true } },
+      { $unwind: { path: '$alerts', preserveNullAndEmptyArrays: true } },
+      { $match: { 'alerts.acknowledged': false } },
+      {
+        $group: {
+          _id: '$alerts.severity',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const criticalAlerts = alertStats.find(s => s._id === 'critical')?.count || 0;
+    const warningAlerts = alertStats.find(s => s._id === 'warning')?.count || 0;
+
+    // Calculate average metrics
+    const avgMetrics = await Device.aggregate([
+      { $match: { isActive: true, 'metrics.cpuUsage': { $exists: true } } },
+      {
+        $group: {
+          _id: null,
+          avgCpu: { $avg: '$metrics.cpuUsage' },
+          avgMemory: { $avg: '$metrics.memoryUsage' },
+          avgNetworkUtil: { $avg: '$metrics.networkUtilization' }
+        }
+      }
+    ]);
+
     const stats = {
-      totalDevices: Math.floor(Math.random() * 50) + 10,
-      activeDevices: Math.floor(Math.random() * 45) + 8,
-      criticalAlerts: Math.floor(Math.random() * 5),
-      warningAlerts: Math.floor(Math.random() * 10) + 2,
-      networkLoad: Math.floor(Math.random() * 80) + 10,
-      uptime: Date.now() - (Math.random() * 86400000 * 7), // Up to 7 days
-      bandwidth: {
-        incoming: Math.random() * 1000000000, // Random bytes/sec
-        outgoing: Math.random() * 800000000
-      },
+      totalDevices,
+      activeDevices,
+      criticalAlerts,
+      warningAlerts,
+      networkLoad: Math.round(avgMetrics[0]?.avgNetworkUtil || 0),
       systemHealth: {
-        cpu: Math.floor(Math.random() * 80) + 10,
-        memory: Math.floor(Math.random() * 70) + 20,
-        disk: Math.floor(Math.random() * 60) + 15
+        cpu: Math.round(avgMetrics[0]?.avgCpu || 0),
+        memory: Math.round(avgMetrics[0]?.avgMemory || 0),
+        network: Math.round(avgMetrics[0]?.avgNetworkUtil || 0)
       },
       lastUpdate: new Date()
     };

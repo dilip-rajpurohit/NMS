@@ -1,7 +1,42 @@
 import axios from 'axios';
 import ErrorHandler from '../utils/ErrorHandler';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// Determine the API base URL based on environment
+const getApiBaseUrl = () => {
+  // If explicitly set via environment variable
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
+  }
+  
+  // For development or when running locally
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:5000/api';
+  }
+  
+  // For production, try to use the same host as the frontend
+  const protocol = window.location.protocol;
+  const hostname = window.location.hostname;
+  
+  // If running on localhost or 127.0.0.1, use localhost for API
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://localhost:5000/api';
+  }
+  
+  // Otherwise, use the same hostname as the frontend
+  return `${protocol}//${hostname}:5000/api`;
+};
+
+const API_BASE_URL = getApiBaseUrl();
+
+// Debug logging for development
+if (process.env.NODE_ENV === 'development') {
+  console.log('🔧 API Configuration:', {
+    baseURL: API_BASE_URL,
+    hostname: window.location.hostname,
+    protocol: window.location.protocol,
+    env: process.env.NODE_ENV
+  });
+}
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -31,7 +66,23 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    console.error('API Error:', error);
+    // Enhanced error logging for network issues
+    if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK') {
+      console.error('🚨 Network Connection Error:', {
+        message: 'Cannot connect to backend API',
+        apiUrl: API_BASE_URL,
+        currentUrl: window.location.href,
+        suggestion: 'Check if backend is running and accessible'
+      });
+    } else if (error.response?.status === 0) {
+      console.error('🚨 CORS or Network Error:', {
+        message: 'Request blocked or network unreachable',
+        apiUrl: API_BASE_URL,
+        suggestion: 'Check CORS settings or network connectivity'
+      });
+    } else {
+      console.error('API Error:', error);
+    }
 
     // Delegate to centralized handler (shows toast, redirects on 401)
     try {

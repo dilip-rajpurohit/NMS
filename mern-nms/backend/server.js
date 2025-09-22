@@ -180,21 +180,19 @@ app.set('socketio', io);
 // Import routes
 const authRoutes = require('./routes/auth');
 const deviceRoutes = require('./routes/devices');
-const topologyRoutes = require('./routes/topology');
+const dashboardRoutes = require('./routes/dashboard');
 const metricsRoutes = require('./routes/metrics');
 const discoveryRoutes = require('./routes/discovery');
 const alertRoutes = require('./routes/alerts');
-const activityRoutes = require('./routes/activity');
 const adminRoutes = require('./routes/admin');
 
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/devices', deviceRoutes);
-app.use('/api/topology', topologyRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/metrics', metricsRoutes);
 app.use('/api/discovery', discoveryRoutes);
 app.use('/api/alerts', alertRoutes);
-app.use('/api/activity', activityRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Enhanced health check endpoint

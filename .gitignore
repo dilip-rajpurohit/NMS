@@ -1,86 +1,89 @@
-# Dependencies
+# ===================================
+# Node.js & NPM
+# ===================================
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
-# Production builds
-/build
-/dist
-mern-nms/frontend/build/
-
-# Environment variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.env.development
-.env.production
-
-# Logs
-logs/
-*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-mern-nms/backend/logs/
+.npm
+.yarn-integrity
 
-# Runtime data
-pids
+# Package lock files (uncomment if needed)
+# package-lock.json
+# yarn.lock
+
+# ===================================
+# Environment Variables
+# ===================================
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+
+# Environment backups
+.env.backup.*
+*.env.backup
+
+# ===================================
+# Build & Distribution
+# ===================================
+build/
+dist/
+out/
+.next/
+.nuxt/
+.cache/
+.parcel-cache/
+.rpt2_cache/
+.rts2_cache_*/
+
+# Project specific builds
+mern-nms/frontend/build/
+mern-nms/backend/dist/
+
+# ===================================
+# Logs & Runtime Data
+# ===================================
+logs/
+*.log
+pids/
 *.pid
 *.seed
 *.pid.lock
 
-# Coverage directory used by tools like istanbul
+# Project specific logs
+mern-nms/backend/logs/
+
+# ===================================
+# Testing & Coverage
+# ===================================
 coverage/
+.nyc_output/
 *.lcov
+.jest/
 
-# nyc test coverage
-.nyc_output
-
-# Dependency directories
-node_modules/
-jspm_packages/
-
-# Optional npm cache directory
-.npm
-
-# Optional eslint cache
-.eslintcache
-
-# Optional REPL history
-.node_repl_history
-
-# Output of 'npm pack'
-*.tgz
-
-# Yarn Integrity file
-.yarn-integrity
-
-# parcel-bundler cache (https://parceljs.org/)
-.cache
-.parcel-cache
-
-# Next.js build output
-.next
-
-# Nuxt.js build / generate output
-.nuxt
-dist
-
-# Storybook build outputs
-.out
-.storybook-out
-
-# Temporary folders
+# ===================================
+# Caching & Temporary Files
+# ===================================
+.cache/
+.tmp/
 tmp/
 temp/
+*.tmp
+*.temp
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
 
-# Editor directories and files
+# ===================================
+# Editor & IDE
+# ===================================
 .vscode/
 .idea/
 *.swp
@@ -91,102 +94,69 @@ temp/
 .settings/
 *.sublime-*
 
-# OS generated files
+# ===================================
+# Operating System
+# ===================================
+# macOS
 .DS_Store
 .DS_Store?
 ._*
 .Spotlight-V100
 .Trashes
-ehthumbs.db
+
+# Windows
 Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-# MongoDB
-*.mongodb
+# Linux
+.directory
 
-# Docker
+# ===================================
+# Docker & Containers
+# ===================================
 .dockerignore
 docker-compose.override.yml
 .docker/
+Dockerfile.dev
 
-# PM2
-.pm2
+# Docker volumes
+mongodb_data/
+postgres_data/
+mysql_data/
 
-# Backup files
-*.bak
-*.backup
+# ===================================
+# Database
+# ===================================
+*.mongodb
+*.db
+*.sqlite
+*.sql
+*.dump
 
-# Package lock files (choose one based on your preference)
-# package-lock.json
-yarn.lock
-
-# TypeScript
-*.tsbuildinfo
-
-# Optional stylelint cache
-.stylelintcache
-
-# Microbundle cache
-.rpt2_cache/
-.rts2_cache_cjs/
-.rts2_cache_es/
-.rts2_cache_umd/
-
-# Optional REPL history
-.node_repl_history
-
-# Output of 'npm pack'
-*.tgz
-
-# Yarn Integrity file
-.yarn-integrity
-
-# dotenv environment variables file
-.env
-.env.test
-.env.production
-
-# parcel-bundler cache (https://parceljs.org/)
-.cache
-.parcel-cache
-
-# Stores VSCode versions used for testing VSCode extensions
-.vscode-test
-
-# Temporary folders
-tmp/
-temp/
-
-# Network Management System specific
-mern-nms/backend/logs/*.log
-mern-nms/backend/uploads/
-mern-nms/frontend/build/
-
-# Deployment specific files
-deployment_info.txt
-.env.backup.*
-*.backup.*
-
-# SNMP related
-*.snmp
-
-# Certificate files
+# ===================================
+# Security & Credentials
+# ===================================
+# SSH Keys
 *.pem
 *.key
 *.crt
 *.p12
+id_rsa
+id_rsa.pub
+*.ssh/
 
-# Database dumps
-*.sql
-*.dump
+# Cloud credentials
+.aws/
+.gcp/
+.azure/
 
-# Backup files
-backup/
-backups/
-
-# Docker volumes and data
-mongodb_data/
-postgres_data/
-mysql_data/
+# ===================================
+# Deployment & DevOps
+# ===================================
+# Deployment info
+deployment_info.txt
+deployment_*.txt
 
 # Terraform
 *.tfstate
@@ -196,20 +166,34 @@ mysql_data/
 
 # Kubernetes
 *.kubeconfig
+kube-config
 
-# AWS
-.aws/
+# PM2
+.pm2/
+ecosystem.config.js
 
-# SSH keys
-id_rsa
-id_rsa.pub
-*.ssh
+# ===================================
+# Project Specific
+# ===================================
+# NMS specific
+mern-nms/backend/uploads/
+*.snmp
 
-# Local development
+# Backup files
+*.bak
+*.backup
+backup/
+backups/
+
+# Development
 .local/
-.cache/
+.dev/
 
-# Testing
-coverage/
-.nyc_output/
-*.lcov
+# ===================================
+# Archive & Compression
+# ===================================
+*.tgz
+*.tar.gz
+*.zip
+*.rar
+*.7z

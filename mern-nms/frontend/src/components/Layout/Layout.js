@@ -1,6 +1,6 @@
 import React, { useState, Suspense } from 'react';
 import { Container, Spinner } from 'react-bootstrap';
-import Header from './Header';
+import Sidebar from './Sidebar';
 
 // Import dashboard components
 import Dashboard from '../Dashboard/Dashboard';
@@ -18,6 +18,15 @@ const Reports = React.lazy(() => import('../Reports/Reports'));
 
 const Layout = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  const handleSectionChange = (sectionId, path) => {
+    setActiveSection(sectionId);
+  };
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed(!sidebarCollapsed);
+  };
 
   const LoadingSpinner = () => (
     <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '200px' }}>
@@ -51,19 +60,19 @@ const Layout = () => {
             <Reports />
           </Suspense>
         );
-      case 'users-management':
+      case 'users':
         return (
           <Suspense fallback={<LoadingSpinner />}>
             <UsersManagement />
           </Suspense>
         );
-      case 'system-settings':
+      case 'system':
         return (
           <Suspense fallback={<LoadingSpinner />}>
             <SystemSettings />
           </Suspense>
         );
-      case 'profile-settings':
+      case 'profile':
         return (
           <Suspense fallback={<LoadingSpinner />}>
             <ProfileSettings />
@@ -75,10 +84,15 @@ const Layout = () => {
   };
 
   return (
-    <div className="min-vh-100" style={{ backgroundColor: '#0f1419' }}>
-      <Header activeSection={activeSection} onSectionChange={setActiveSection} />
+    <div className="d-flex min-vh-100" style={{ backgroundColor: '#0f1419' }}>
+      <Sidebar 
+        activeItem={activeSection}
+        onItemClick={handleSectionChange}
+        isCollapsed={sidebarCollapsed}
+        onToggle={toggleSidebar}
+      />
       
-      <main className="flex-grow-1">
+      <main className={`flex-grow-1 ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         <Container fluid className="p-4">
           <div className="content-wrapper">
             {renderContent()}

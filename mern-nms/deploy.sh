@@ -178,7 +178,9 @@ create_env_file() {
     # Ask for IP address
     if [[ "$NON_INTERACTIVE" == "true" ]]; then
         local server_ip=$detected_ip
+        allow_all_origins="true"
         print_info "Using detected IP address: $server_ip"
+        print_info "CORS set to allow all origins for non-interactive mode"
     else
         print_info "Network Configuration for Multi-Device Access:"
         echo
@@ -194,17 +196,18 @@ create_env_file() {
         # Ask if user wants to allow all CORS origins for easier development
         echo
         echo "CORS Configuration:"
-        echo "For easier development/testing, you can allow connections from any IP address."
-        echo "This is less secure but convenient for development environments."
-        echo -n "Allow connections from any IP address? (y/N): "
+        echo "For multi-device access (laptops, phones, tablets), allow connections from any IP address."
+        echo "This prevents network login issues when accessing from different devices."
+        echo "Recommended: 'Y' for development/home use, 'n' for production servers."
+        echo -n "Allow connections from any IP address? (Y/n): "
         read allow_all_cors
         
-        if [[ "$allow_all_cors" =~ ^[Yy]$ ]]; then
-            allow_all_origins="true"
-            print_warning "CORS set to allow all origins - suitable for development only!"
-        else
+        if [[ "$allow_all_cors" =~ ^[Nn]$ ]]; then
             allow_all_origins="false"
             print_info "CORS restricted to specific origins for security"
+        else
+            allow_all_origins="true"
+            print_warning "CORS set to allow all origins - suitable for development only!"
         fi
     fi
     
@@ -228,10 +231,14 @@ create_env_file() {
     
     # Ask for passwords and email instead of generating them
     if [[ "$NON_INTERACTIVE" == "true" ]]; then
-        local mongo_password="secure_mongo_$(date +%s)"
-        local admin_password="admin_$(date +%s)"
-        local admin_email="admin@$server_ip"
-        print_warning "Using auto-generated passwords and default email in non-interactive mode"
+        local mongo_password="mongo123"
+        local admin_password="admin123"
+        local admin_email="admin@example.com"
+        print_warning "Using default credentials in non-interactive mode:"
+        print_warning "  MongoDB Password: mongo123"
+        print_warning "  Admin Password: admin123"
+        print_warning "  Admin Email: admin@example.com"
+        print_warning "  Please change these after deployment!"
     else
         echo
         print_info "Setting up credentials..."
@@ -269,9 +276,9 @@ create_env_file() {
     sed -i "s/FRONTEND_PORT=3000/FRONTEND_PORT=$frontend_port/g" .env
     sed -i "s/BACKEND_PORT=5000/BACKEND_PORT=$backend_port/g" .env
     sed -i "s/JWT_SECRET=your-secure-jwt-secret-here-change-this-for-production/JWT_SECRET=$jwt_secret/g" .env
-    sed -i "s/MONGO_ROOT_PASSWORD=your-secure-password-here/MONGO_ROOT_PASSWORD=$mongo_password/g" .env
-    sed -i "s/ADMIN_PASSWORD=your-secure-admin-password/ADMIN_PASSWORD=$admin_password/g" .env
-    sed -i "s/ADMIN_EMAIL=admin@yourdomain.com/ADMIN_EMAIL=$admin_email/g" .env
+    sed -i "s/MONGO_ROOT_PASSWORD=mongo123/MONGO_ROOT_PASSWORD=$mongo_password/g" .env
+    sed -i "s/ADMIN_PASSWORD=admin123/ADMIN_PASSWORD=$admin_password/g" .env
+    sed -i "s/ADMIN_EMAIL=admin@example.com/ADMIN_EMAIL=$admin_email/g" .env
     sed -i "s/ALLOW_ALL_ORIGINS=false/ALLOW_ALL_ORIGINS=${allow_all_origins:-false}/g" .env
     
     print_success "Environment file created successfully"
@@ -283,7 +290,21 @@ create_env_file() {
     echo "Backend API: http://$server_ip:$backend_port"
     echo "Admin Username: admin"
     echo "Admin Password: $admin_password"
+    echo "CORS Allow All Origins: $allow_all_origins"
     echo "=================================="
+    echo
+    
+    # Display network access information
+    if [[ "$allow_all_origins" == "true" ]]; then
+        print_success "✅ Multi-device access enabled!"
+        echo "   You can access the application from any device on the network:"
+        echo "   📱 Smartphones: http://$server_ip:$frontend_port"
+        echo "   💻 Other laptops: http://$server_ip:$frontend_port"
+        echo "   🖥️  Desktop PCs: http://$server_ip:$frontend_port"
+    else
+        print_warning "⚠️  Network access restricted for security"
+        echo "   Only specific origins will be allowed to access the application"
+    fi
     echo
     
     # Save credentials to a file
@@ -294,6 +315,10 @@ Deployment Date: $(date)
 Server IP/Domain: $server_ip
 Frontend URL: http://$server_ip:$frontend_port
 Backend API: http://$server_ip:$backend_port
+
+Network Access Configuration:
+- CORS Allow All Origins: $allow_all_origins
+- Multi-device access: $(if [[ "$allow_all_origins" == "true" ]]; then echo "Enabled ✅"; else echo "Restricted ⚠️"; fi)
 
 Admin Credentials:
 - Username: admin
@@ -306,6 +331,23 @@ MongoDB Credentials:
 
 Security:
 - JWT Secret: $jwt_secret
+
+Network Access Guide:
+===================
+$(if [[ "$allow_all_origins" == "true" ]]; then
+echo "✅ This deployment allows access from any device on the network.
+You can access the application from:
+- Other laptops: http://$server_ip:$frontend_port
+- Smartphones: http://$server_ip:$frontend_port  
+- Tablets: http://$server_ip:$frontend_port
+- Desktop PCs: http://$server_ip:$frontend_port
+
+No network login issues should occur with this configuration."
+else
+echo "⚠️  Network access is restricted for security.
+Only specific origins are allowed to access the application.
+If you experience network login issues, redeploy with CORS allow all origins enabled."
+fi)
 
 IMPORTANT: Keep this file secure and delete it after noting the credentials!
 EOF
@@ -418,6 +460,21 @@ check_health() {
     echo "  👤 Username: admin"
     echo "  🔑 Password: $(grep "ADMIN_PASSWORD=" .env | cut -d'=' -f2)"
     echo
+    
+    # Check CORS configuration and display network access info
+    local allow_all_origins_value=$(grep "ALLOW_ALL_ORIGINS=" .env | cut -d'=' -f2)
+    if [[ "$allow_all_origins_value" == "true" ]]; then
+        print_success "🌍 Multi-device network access: ENABLED"
+        echo "   ✅ No network login issues expected"
+        echo "   ✅ Accessible from other laptops, phones, tablets"
+        echo "   ✅ Use this URL on any device: http://$server_ip:$frontend_port"
+    else
+        print_warning "🔒 Network access: RESTRICTED"
+        echo "   ⚠️  May experience login issues from other devices"
+        echo "   💡 Redeploy with CORS enabled if network access needed"
+    fi
+    echo
+    
     print_info "Useful commands:"
     echo "  📊 View logs: docker compose logs -f"
     echo "  🔄 Restart: docker compose restart"

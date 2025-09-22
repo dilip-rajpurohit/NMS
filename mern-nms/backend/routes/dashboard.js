@@ -1,10 +1,7 @@
 const express = require('express');
+const Device = require('../models/Device');
+const { authenticateToken } = require('../middleware/auth');
 const router = express.Router();
-
-// Middleware to authenticate requests
-const authenticateToken = (req, res, next) => {
-  next();
-};
 
 // Generate mock activity data
 const generateMockActivity = (limit = 10) => {
@@ -47,8 +44,8 @@ const generateMockActivity = (limit = 10) => {
   return activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 };
 
-// GET /api/activity/recent
-router.get('/recent', authenticateToken, async (req, res) => {
+// GET /api/dashboard/activity/recent
+router.get('/activity/recent', authenticateToken, async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
     const activities = generateMockActivity(limit);
@@ -67,8 +64,8 @@ router.get('/recent', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /api/activity/summary
-router.get('/summary', authenticateToken, async (req, res) => {
+// GET /api/dashboard/activity/summary
+router.get('/activity/summary', authenticateToken, async (req, res) => {
   try {
     const summary = {
       todayEvents: Math.floor(Math.random() * 100) + 20,
@@ -85,6 +82,53 @@ router.get('/summary', authenticateToken, async (req, res) => {
     res.status(500).json({ 
       error: 'Failed to fetch activity summary',
       details: error.message 
+    });
+  }
+});
+
+// GET /api/dashboard/topology
+router.get('/topology', authenticateToken, async (req, res) => {
+  try {
+    const devices = await Device.find({}).select('name ipAddress deviceType status vendor location');
+    
+    const nodes = devices.map(device => ({
+      id: device._id,
+      name: device.name,
+      ipAddress: device.ipAddress,
+      type: device.deviceType,
+      status: device.status,
+      vendor: device.vendor,
+      location: device.location
+    }));
+
+    const statistics = {
+      totalDevices: devices.length,
+      onlineDevices: devices.filter(d => d.status === 'online').length,
+      offlineDevices: devices.filter(d => d.status === 'offline').length,
+      deviceTypes: devices.reduce((acc, device) => {
+        acc[device.deviceType] = (acc[device.deviceType] || 0) + 1;
+        return acc;
+      }, {}),
+      vendors: devices.reduce((acc, device) => {
+        if (device.vendor) {
+          acc[device.vendor] = (acc[device.vendor] || 0) + 1;
+        }
+        return acc;
+      }, {})
+    };
+
+    res.json({
+      nodes,
+      edges: [],
+      statistics,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Topology error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch topology',
+      message: error.message
     });
   }
 });
