@@ -180,7 +180,7 @@ create_env_file() {
         local server_ip=$detected_ip
         allow_all_origins="true"
         print_info "Using detected IP address: $server_ip"
-        print_info "CORS set to allow all origins for non-interactive mode"
+        print_info "CORS set to allow all origins for network access"
     else
         print_info "Network Configuration for Multi-Device Access:"
         echo
@@ -196,18 +196,17 @@ create_env_file() {
         # Ask if user wants to allow all CORS origins for easier development
         echo
         echo "CORS Configuration:"
-        echo "For multi-device access (laptops, phones, tablets), allow connections from any IP address."
-        echo "This prevents network login issues when accessing from different devices."
-        echo "Recommended: 'Y' for development/home use, 'n' for production servers."
-        echo -n "Allow connections from any IP address? (Y/n): "
+        echo "For easier development/testing, you can allow connections from any IP address."
+        echo "This is less secure but convenient for development environments."
+        echo -n "Allow connections from any IP address? (y/N): "
         read allow_all_cors
         
-        if [[ "$allow_all_cors" =~ ^[Nn]$ ]]; then
-            allow_all_origins="false"
-            print_info "CORS restricted to specific origins for security"
-        else
+        if [[ "$allow_all_cors" =~ ^[Yy]$ ]]; then
             allow_all_origins="true"
             print_warning "CORS set to allow all origins - suitable for development only!"
+        else
+            allow_all_origins="false"
+            print_info "CORS restricted to specific origins for security"
         fi
     fi
     
@@ -290,21 +289,7 @@ create_env_file() {
     echo "Backend API: http://$server_ip:$backend_port"
     echo "Admin Username: admin"
     echo "Admin Password: $admin_password"
-    echo "CORS Allow All Origins: $allow_all_origins"
     echo "=================================="
-    echo
-    
-    # Display network access information
-    if [[ "$allow_all_origins" == "true" ]]; then
-        print_success "✅ Multi-device access enabled!"
-        echo "   You can access the application from any device on the network:"
-        echo "   📱 Smartphones: http://$server_ip:$frontend_port"
-        echo "   💻 Other laptops: http://$server_ip:$frontend_port"
-        echo "   🖥️  Desktop PCs: http://$server_ip:$frontend_port"
-    else
-        print_warning "⚠️  Network access restricted for security"
-        echo "   Only specific origins will be allowed to access the application"
-    fi
     echo
     
     # Save credentials to a file
@@ -315,10 +300,6 @@ Deployment Date: $(date)
 Server IP/Domain: $server_ip
 Frontend URL: http://$server_ip:$frontend_port
 Backend API: http://$server_ip:$backend_port
-
-Network Access Configuration:
-- CORS Allow All Origins: $allow_all_origins
-- Multi-device access: $(if [[ "$allow_all_origins" == "true" ]]; then echo "Enabled ✅"; else echo "Restricted ⚠️"; fi)
 
 Admin Credentials:
 - Username: admin
@@ -331,23 +312,6 @@ MongoDB Credentials:
 
 Security:
 - JWT Secret: $jwt_secret
-
-Network Access Guide:
-===================
-$(if [[ "$allow_all_origins" == "true" ]]; then
-echo "✅ This deployment allows access from any device on the network.
-You can access the application from:
-- Other laptops: http://$server_ip:$frontend_port
-- Smartphones: http://$server_ip:$frontend_port  
-- Tablets: http://$server_ip:$frontend_port
-- Desktop PCs: http://$server_ip:$frontend_port
-
-No network login issues should occur with this configuration."
-else
-echo "⚠️  Network access is restricted for security.
-Only specific origins are allowed to access the application.
-If you experience network login issues, redeploy with CORS allow all origins enabled."
-fi)
 
 IMPORTANT: Keep this file secure and delete it after noting the credentials!
 EOF
@@ -460,21 +424,6 @@ check_health() {
     echo "  👤 Username: admin"
     echo "  🔑 Password: $(grep "ADMIN_PASSWORD=" .env | cut -d'=' -f2)"
     echo
-    
-    # Check CORS configuration and display network access info
-    local allow_all_origins_value=$(grep "ALLOW_ALL_ORIGINS=" .env | cut -d'=' -f2)
-    if [[ "$allow_all_origins_value" == "true" ]]; then
-        print_success "🌍 Multi-device network access: ENABLED"
-        echo "   ✅ No network login issues expected"
-        echo "   ✅ Accessible from other laptops, phones, tablets"
-        echo "   ✅ Use this URL on any device: http://$server_ip:$frontend_port"
-    else
-        print_warning "🔒 Network access: RESTRICTED"
-        echo "   ⚠️  May experience login issues from other devices"
-        echo "   💡 Redeploy with CORS enabled if network access needed"
-    fi
-    echo
-    
     print_info "Useful commands:"
     echo "  📊 View logs: docker compose logs -f"
     echo "  🔄 Restart: docker compose restart"
