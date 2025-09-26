@@ -15,16 +15,16 @@ const server = http.createServer(app);
 
 // Configure allowed origins for CORS
 const allowedOrigins = [
-  process.env.FRONTEND_URL || "http://localhost:3000",
-  "http://localhost:3000",
-  "http://frontend:80",
+  process.env.FRONTEND_URL || `http://${process.env.IP}:${process.env.FRONTEND_PORT}`,
+  `http://${process.env.IP}:${process.env.FRONTEND_PORT}`,
+  `http://frontend:${process.env.FRONTEND_INTERNAL_PORT || 80}`,
   "http://frontend",
-  `http://${process.env.IP || 'localhost'}:${process.env.FRONTEND_PORT || 3000}`,
-  `http://${process.env.IP || 'localhost'}:3000`,
+    `http://${process.env.IP}:${process.env.FRONTEND_PORT}`,
+  `http://${process.env.IP}:${process.env.FRONTEND_PORT}`,
   // Allow access from local network (192.168.x.x and 10.x.x.x ranges)
-  /^http:\/\/192\.168\.\d+\.\d+:(3000|80)$/,
-  /^http:\/\/10\.\d+\.\d+\.\d+:(3000|80)$/,
-  /^http:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+:(3000|80)$/
+  new RegExp(`^http:\\/\\/192\\.168\\.\\d+\\.\\d+:${process.env.FRONTEND_PORT}$`),
+  new RegExp(`^http:\\/\\/10\\.\\d+\\.\\d+\\.\\d+:${process.env.FRONTEND_PORT}$`),
+  new RegExp(`^http:\\/\\/172\\.(1[6-9]|2[0-9]|3[0-1])\\.\\d+\\.\\d+:${process.env.FRONTEND_PORT}$`)
 ];
 
 // Check if we should allow all origins (for development)
@@ -73,7 +73,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // MongoDB Connection
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/nms_db';
+const MONGODB_URI = process.env.MONGODB_URI;
 
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
@@ -112,8 +112,8 @@ const createAdminUser = async () => {
       process.exit(1);
     }
     const adminUser = new User({
-      username: process.env.ADMIN_USERNAME || 'admin',
-      email: process.env.ADMIN_EMAIL || 'admin@nms.local',
+      username: process.env.ADMIN_USERNAME,
+      email: process.env.ADMIN_EMAIL,
       password: adminPassword,
       role: 'admin',
       isActive: true,
@@ -205,8 +205,8 @@ app.get('/api/health', (req, res) => {
     memory: process.memoryUsage(),
     mongodb: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
     activeConnections: io.sockets.sockets.size,
-    environment: process.env.NODE_ENV || 'development',
-    version: '1.0.0'
+    environment: process.env.NODE_ENV,
+    version: process.env.APP_VERSION || '1.0.0'
   });
 });
 
@@ -265,15 +265,18 @@ app.use('*', (req, res) => {
 });
 
 // Start server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.BACKEND_PORT;
 
-server.listen(PORT, () => {
-  console.log(`🚀 NMS Backend server running on port ${PORT}`);
-  console.log(`📊 API available at http://localhost:${PORT}/api`);
-  console.log(`❤️  Health check: http://localhost:${PORT}/api/health`);
-  console.log(`📈 System stats: http://localhost:${PORT}/api/stats`);
-  console.log(`🌐 Frontend: http://localhost:3000`);
-  console.log(`👤 Admin Login: admin / ${process.env.ADMIN_PASSWORD || '[ADMIN_PASSWORD env var required]'}`);
+server.listen(PORT, '0.0.0.0', () => {
+  const serverIP = process.env.IP;
+  const frontendPort = process.env.FRONTEND_PORT;
+  const backendPort = process.env.BACKEND_PORT;
+  console.log(`🚀 NMS Backend server running on port ${PORT} (binding to all interfaces)`);
+  console.log(`📊 API available at http://${serverIP}:${backendPort}/api`);
+  console.log(`❤️  Health check: http://${serverIP}:${backendPort}/api/health`);
+  console.log(`📈 System stats: http://${serverIP}:${backendPort}/api/stats`);
+  console.log(`🌐 Frontend: http://${serverIP}:${frontendPort}`);
+  console.log(`👤 Admin Login: ${process.env.ADMIN_USERNAME} / ${process.env.ADMIN_PASSWORD}`);
   console.log(`🔄 Real-time monitoring: Active`);
 });
 

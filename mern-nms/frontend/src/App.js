@@ -14,16 +14,13 @@ const Layout = lazy(() => import('./components/Layout/Layout'));
 
 // Enhanced loading component with better UX
 const Loading = () => (
-  <div className="d-flex flex-column justify-content-center align-items-center" style={{ height: '100vh', backgroundColor: '#0f1419' }}>
+  <div className="d-flex flex-column justify-content-center align-items-center" style={{ height: '100vh', backgroundColor: '#0f172a' }}>
     <div className="text-center text-white mb-4">
-      <h3 className="fw-bold">
-        <i className="fas fa-network-wired me-2 text-primary"></i>
-        NMS
-      </h3>
-      <p className="text-light">Loading Network Management System...</p>
-    </div>
-    <div className="spinner-border text-light" role="status" style={{ width: '3rem', height: '3rem' }}>
-      <span className="visually-hidden">Loading...</span>
+      <div className="mb-3">
+        <i className="fas fa-cube text-primary cube-loading" style={{ fontSize: '4rem' }}></i>
+      </div>
+      <h3 className="fw-bold text-white mb-2">NMS</h3>
+      <p className="text-light mb-0">Loading Network Management System...</p>
     </div>
   </div>
 );

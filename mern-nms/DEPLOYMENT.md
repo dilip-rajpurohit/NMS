@@ -1,30 +1,70 @@
-# NMS Easy Deployment Guide
+# Cross-Platform NMS Deployment Guide
 
 ## Overview
 
-This guide helps you deploy the Network Management System (NMS) application easily on any server using IP addresses instead of localhost. The system supports automated deployment for production-ready environments.
+This Network Management System (NMS) can be deployed on **Linux, macOS, and Windows**. The system supports automated deployment for production-ready environments with cross-platform compatibility.
+
+## Prerequisites
+
+- **Docker Desktop** (Windows/macOS) or **Docker Engine** (Linux)
+- **Git** (to clone the repository)
+- **4GB RAM minimum** (8GB recommended)
+- **5GB free disk space**
 
 ## Quick Start
 
-### Using the Deployment Script (Recommended)
+### Linux/macOS
+```bash
+# Navigate to project directory
+cd mern-nms
 
-1. Navigate to the project directory:
-   ```bash
-   cd mern-nms
-   ```
+# Make deploy script executable
+chmod +x deploy.sh
 
-2. Run the automated deployment script:
-   ```bash
-   ./deploy.sh
-   ```
+# Run deployment (interactive mode)
+./deploy.sh
 
-3. The script will automatically:
-   - ✅ Check Docker dependencies
-   - ✅ Auto-detect your server IP address  
-   - ✅ Generate secure passwords and JWT secrets
-   - ✅ Create environment configuration
-   - ✅ Build and deploy all services
-   - ✅ Provide login credentials
+# Or run in non-interactive mode with defaults
+./deploy.sh --non-interactive
+```
+
+### Windows
+
+#### Option 1: Using Windows Batch File (Recommended)
+```cmd
+# Navigate to project directory  
+cd mern-nms
+
+# Run the Windows deployment script
+deploy.bat
+```
+
+#### Option 2: Using Git Bash/WSL
+```bash
+# In Git Bash or WSL
+cd mern-nms
+
+# Run the deployment script
+bash deploy.sh
+```
+
+## Platform-Specific Notes
+
+### Windows
+- **Docker Desktop**: Must be installed and running
+- **WSL2**: Recommended for better performance
+- **Line Endings**: Scripts automatically handle CRLF/LF conversion
+- **Firewall**: May need to allow Docker through Windows Firewall
+
+### macOS
+- **Docker Desktop**: Must be installed and running
+- **ARM64 (M1/M2)**: Fully supported with native ARM images
+- **Intel**: Fully supported
+
+### Linux
+- **Docker Engine**: Install via package manager
+- **Docker Compose**: Usually included with Docker Engine
+- **Permissions**: User must be in `docker` group
 
 ### Manual Deployment
 

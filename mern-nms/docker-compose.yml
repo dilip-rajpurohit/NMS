@@ -4,19 +4,21 @@ services:
     image: mongo:7-jammy
     container_name: nms-mongodb
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-admin}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-password123}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
       MONGO_INITDB_DATABASE: nms_db
     volumes:
       - mongodb_data:/data/db
       - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
     ports:
-      - "27017:27017"
+      - "0.0.0.0:${MONGO_PORT}:${MONGO_PORT}"
     networks:
       - nms-network
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      test: echo 'db.runCommand("ping").ok' | mongosh ${IP}:${MONGO_PORT}/test --quiet
       interval: 30s
       timeout: 10s
       retries: 5
@@ -28,20 +30,22 @@ services:
       dockerfile: Dockerfile
     container_name: nms-backend
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       NODE_ENV: production
-      PORT: ${BACKEND_PORT:-5000}
-      MONGODB_URI: mongodb://${MONGO_ROOT_USER:-admin}:${MONGO_ROOT_PASSWORD:-password123}@mongodb:27017/nms_db?authSource=admin
+      PORT: ${BACKEND_PORT}
+      MONGODB_URI: mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongodb:${MONGO_PORT:-27017}/nms_db?authSource=admin
       JWT_SECRET: ${JWT_SECRET:-please-set-JWT_SECRET-environment-variable-for-security}
       JWT_EXPIRES_IN: 24h
       CREATE_ADMIN_USER: "true"
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
-      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
-      FRONTEND_URL: http://${IP:-localhost}:${FRONTEND_PORT:-3000}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      FRONTEND_URL: http://${IP}:${FRONTEND_PORT}
       ALLOW_ALL_ORIGINS: ${ALLOW_ALL_ORIGINS:-false}
     ports:
-      - "${BACKEND_PORT:-5000}:${BACKEND_PORT:-5000}"
+      - "0.0.0.0:${BACKEND_PORT}:${BACKEND_PORT}"
     networks:
       - nms-network
     depends_on:
@@ -50,7 +54,7 @@ services:
     volumes:
       - ./backend/logs:/usr/src/app/logs
     healthcheck:
-      test: ["CMD", "node", "-e", "const http = require('http'); const options = { hostname: 'localhost', port: process.env.BACKEND_PORT || 5000, path: '/api/health', timeout: 3000 }; const req = http.request(options, (res) => { if (res.statusCode === 200) process.exit(0); else process.exit(1); }); req.on('error', () => process.exit(1)); req.end();"]
+      test: ["CMD", "node", "-e", "const http = require('http'); const options = { hostname: process.env.IP, port: process.env.BACKEND_PORT, path: '/api/health', timeout: 3000 }; const req = http.request(options, (res) => { if (res.statusCode === 200) process.exit(0); else process.exit(1); }); req.on('error', () => process.exit(1)); req.end();"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -61,26 +65,29 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        REACT_APP_API_URL: http://${IP:-localhost}:${BACKEND_PORT:-5000}/api
-        REACT_APP_WS_URL: ws://${IP:-localhost}:${BACKEND_PORT:-5000}
+        REACT_APP_API_URL: http://${IP}:${BACKEND_PORT}/api
+        REACT_APP_WS_URL: ws://${IP}:${BACKEND_PORT}
+        REACT_APP_BACKEND_PORT: ${BACKEND_PORT}
         REACT_APP_ENV: production
     container_name: nms-frontend
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       BACKEND_HOST: backend
-      BACKEND_PORT: ${BACKEND_PORT:-5000}
+      BACKEND_PORT: ${BACKEND_PORT}
       FRONTEND_PORT: 80
-      SERVER_IP: ${IP:-localhost}
-      IP: ${IP:-localhost}  # Legacy support
+      SERVER_IP: ${IP}
+      IP: ${IP}  # Legacy support
     ports:
-      - "${FRONTEND_PORT:-3000}:80"
+      - "0.0.0.0:${FRONTEND_PORT}:${FRONTEND_INTERNAL_PORT:-80}"
     networks:
       - nms-network
     depends_on:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://${IP}:${FRONTEND_PORT}/health"]
       interval: 30s
       timeout: 10s
       retries: 5

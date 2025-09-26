@@ -3,6 +3,13 @@
 # NMS Easy Deployment Script
 # This script helps you deploy the NMS application easily
 
+# Windows/Git Bash compatibility
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
+    WINPTY_PREFIX="winpty "
+else
+    WINPTY_PREFIX=""
+fi
+
 set -e
 
 # Colors for output
@@ -103,12 +110,26 @@ fi
 check_dependencies() {
     print_info "Checking dependencies..."
     
+    # Check Docker installation and accessibility
     if ! command -v docker &> /dev/null; then
         print_error "Docker is not installed. Please install Docker first."
+        if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
+            print_info "For Windows: Download Docker Desktop from https://www.docker.com/products/docker-desktop"
+        fi
         exit 1
     fi
     
-    if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
+    # Check if Docker daemon is running
+    if ! ${WINPTY_PREFIX}docker info &> /dev/null; then
+        print_error "Docker daemon is not running. Please start Docker first."
+        if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
+            print_info "For Windows: Start Docker Desktop application"
+        fi
+        exit 1
+    fi
+    
+    # Check Docker Compose
+    if ! ${WINPTY_PREFIX}docker compose version &> /dev/null && ! command -v docker-compose &> /dev/null; then
         print_error "Docker Compose is not installed. Please install Docker Compose first."
         exit 1
     fi
@@ -127,8 +148,8 @@ get_server_ip() {
     fi
     
     if [[ -z "$primary_ip" ]]; then
-        # Final fallback
-        primary_ip="localhost"
+        # Final fallback - force user to provide IP
+        primary_ip=""
     fi
     
     echo "$primary_ip"
@@ -160,7 +181,7 @@ create_env_file() {
     
     if [[ -f ".env" ]]; then
         print_warning ".env file already exists. Creating backup..."
-        cp .env .env.backup.$(date +%Y%m%d_%H%M%S)
+        cp .env save_env_backups/.env.backup.$(date +%Y%m%d_%H%M%S)
     fi
     
     if [[ ! -f ".env.template" ]]; then
@@ -272,8 +293,10 @@ create_env_file() {
     
     # Replace values in .env file
     sed -i "s/IP=localhost/IP=$server_ip/g" .env
+    sed -i "s/IP=AUTO_DETECT/IP=$server_ip/g" .env
     sed -i "s/FRONTEND_PORT=3000/FRONTEND_PORT=$frontend_port/g" .env
     sed -i "s/BACKEND_PORT=5000/BACKEND_PORT=$backend_port/g" .env
+    sed -i "s/MONGO_PORT=27017/MONGO_PORT=${mongo_port:-27017}/g" .env
     sed -i "s/JWT_SECRET=your-secure-jwt-secret-here-change-this-for-production/JWT_SECRET=$jwt_secret/g" .env
     sed -i "s/MONGO_ROOT_PASSWORD=mongo123/MONGO_ROOT_PASSWORD=$mongo_password/g" .env
     sed -i "s/ADMIN_PASSWORD=admin123/ADMIN_PASSWORD=$admin_password/g" .env
@@ -325,7 +348,7 @@ deploy_application() {
     
     # Stop any existing containers
     print_info "Stopping existing containers..."
-    docker compose down 2>/dev/null || docker-compose down 2>/dev/null || true
+    ${WINPTY_PREFIX}docker compose down 2>/dev/null || ${WINPTY_PREFIX}docker-compose down 2>/dev/null || true
     
     # Remove existing MongoDB volume to prevent authentication conflicts
     if [[ "$PRESERVE_DATA" == "true" ]]; then
@@ -333,9 +356,9 @@ deploy_application() {
         print_warning "Note: This may cause authentication issues if credentials have changed"
     else
         print_info "Cleaning up existing MongoDB data to prevent credential conflicts..."
-        if docker volume ls | grep -q "mern-nms_mongodb_data"; then
+        if ${WINPTY_PREFIX}docker volume ls | grep -q "mern-nms_mongodb_data"; then
             print_warning "Removing existing MongoDB volume to ensure clean database initialization..."
-            docker volume rm mern-nms_mongodb_data 2>/dev/null || true
+            ${WINPTY_PREFIX}docker volume rm mern-nms_mongodb_data 2>/dev/null || true
             print_success "MongoDB volume cleaned up successfully"
         else
             print_info "No existing MongoDB volume found"
@@ -344,24 +367,24 @@ deploy_application() {
     
     # Build and start services
     print_info "Building and starting services..."
-    if docker compose version &> /dev/null; then
-        docker compose up -d --build --force-recreate
+    if ${WINPTY_PREFIX}docker compose version &> /dev/null; then
+        ${WINPTY_PREFIX}docker compose up -d --build --force-recreate
         # Wait and check if containers are running
         sleep 5
         print_info "Checking container status..."
-        if ! docker compose ps | grep -q "Up"; then
+        if ! ${WINPTY_PREFIX}docker compose ps | grep -q "Up"; then
             print_warning "Some containers may not have started properly. Attempting restart..."
-            docker compose restart
+            ${WINPTY_PREFIX}docker compose restart
             sleep 10
         fi
     elif command -v docker-compose &> /dev/null; then
-        docker-compose up -d --build --force-recreate
+        ${WINPTY_PREFIX}docker-compose up -d --build --force-recreate
         # Wait and check if containers are running
         sleep 5
         print_info "Checking container status..."
-        if ! docker-compose ps | grep -q "Up"; then
+        if ! ${WINPTY_PREFIX}docker-compose ps | grep -q "Up"; then
             print_warning "Some containers may not have started properly. Attempting restart..."
-            docker-compose restart
+            ${WINPTY_PREFIX}docker-compose restart
             sleep 10
         fi
     else
@@ -373,7 +396,7 @@ deploy_application() {
     local retry_count=0
     local max_retries=3
     while [[ $retry_count -lt $max_retries ]]; do
-        if docker ps --format "table {{.Names}}\t{{.Status}}" | grep -E "(nms-backend|nms-frontend|nms-mongodb)" | grep -q "Up"; then
+        if ${WINPTY_PREFIX}docker ps --format "table {{.Names}}\t{{.Status}}" | grep -E "(nms-backend|nms-frontend|nms-mongodb)" | grep -q "Up"; then
             print_success "Application deployed successfully!"
             return 0
         else
@@ -383,7 +406,7 @@ deploy_application() {
         fi
     done
     
-    print_error "Some containers failed to start properly. Check logs with: docker-compose logs"
+    print_error "Some containers failed to start properly. Check logs with: ${WINPTY_PREFIX}docker compose logs"
 }
 
 # Check application health
@@ -398,14 +421,14 @@ check_health() {
     sleep 10
     
     # Check backend health
-    if curl -f "http://localhost:$backend_port/api/health" >/dev/null 2>&1; then
+    if curl -f "http://$server_ip:$backend_port/api/health" >/dev/null 2>&1; then
         print_success "Backend is healthy"
     else
         print_warning "Backend health check failed (this is normal if still starting up)"
     fi
     
     # Check frontend
-    if curl -f "http://localhost:$frontend_port/health" >/dev/null 2>&1; then
+    if curl -f "http://$server_ip:$frontend_port/health" >/dev/null 2>&1; then
         print_success "Frontend is healthy"
     else
         print_warning "Frontend health check failed (this is normal if still starting up)"
@@ -425,9 +448,9 @@ check_health() {
     echo "  🔑 Password: $(grep "ADMIN_PASSWORD=" .env | cut -d'=' -f2)"
     echo
     print_info "Useful commands:"
-    echo "  📊 View logs: docker compose logs -f"
-    echo "  🔄 Restart: docker compose restart"
-    echo "  🛑 Stop: docker compose down"
+    echo "  📊 View logs: ${WINPTY_PREFIX}docker compose logs -f"
+    echo "  🔄 Restart: ${WINPTY_PREFIX}docker compose restart"
+    echo "  🛑 Stop: ${WINPTY_PREFIX}docker compose down"
     echo
 }
 

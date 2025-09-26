@@ -35,18 +35,15 @@ COPY --from=build /usr/src/app/build /usr/share/nginx/html
 COPY default.conf.template /etc/nginx/conf.d/default.conf.template
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 
-# Make entrypoint script executable
-RUN chmod +x /docker-entrypoint.sh
-
-# Install gettext for envsubst
-RUN apk add --no-cache gettext
+# Fix line endings and make entrypoint script executable (Windows compatibility)
+RUN sed -i 's/\r$//' /docker-entrypoint.sh && chmod +x /docker-entrypoint.sh
 
 # Expose port
 EXPOSE 80
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://${SERVER_IP}:${FRONTEND_INTERNAL_PORT}/health || exit 1
 
 # Use custom entrypoint
 ENTRYPOINT ["/docker-entrypoint.sh"]

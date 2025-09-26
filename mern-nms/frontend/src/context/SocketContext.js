@@ -88,7 +88,8 @@ export const SocketProvider = ({ children }) => {
   useEffect(() => {
     if (user) {
       // Initialize socket connection when user is authenticated
-      const newSocket = io(process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000', {
+      const socketUrl = process.env.REACT_APP_WS_URL || `${window.location.protocol}//${window.location.hostname}:${process.env.REACT_APP_BACKEND_PORT}`;
+      const newSocket = io(socketUrl, {
         transports: ['websocket'],
         autoConnect: true,
         reconnection: true,

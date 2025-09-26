@@ -252,17 +252,17 @@ const Login = () => {
   };
 
   return (
-    <Container fluid className="d-flex align-items-center justify-content-center" style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+    <Container fluid className="d-flex align-items-center justify-content-center auth-container">
       <Row className="justify-content-center w-100">
         <Col md={6} lg={4}>
-          <Card className="shadow-lg border-0" style={{ borderRadius: '15px' }}>
+          <Card className="auth-card shadow-lg border-0">
             <Card.Body className="p-5">
               <div className="text-center mb-4">
-                <h2 className="fw-bold text-primary">
-                  <i className="fas fa-network-wired me-2"></i>
-                  NMS
+                <h2 className="fw-bold text-primary d-flex align-items-center justify-content-center gap-2 mb-2">
+                  <i className="fas fa-cube" style={{fontSize:'32px', color:'#3b82f6'}}></i>
+                  <span style={{letterSpacing:'1px'}}>NMS</span>
                 </h2>
-                <p className="text-muted">Network Management System</p>
+                <p className="text-muted mb-0" style={{fontSize:'0.9rem'}}>Network Management System</p>
               </div>
 
               {error && <Alert variant="danger">{error}</Alert>}

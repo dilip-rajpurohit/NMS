@@ -54,6 +54,15 @@ code {
 }
 
 /* Animation for loading states */
+@keyframes cubeRotate {
+  0% { transform: rotateY(0deg); }
+  100% { transform: rotateY(360deg); }
+}
+
+.cube-loading {
+  animation: cubeRotate 2s linear infinite;
+  filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.5));
+}
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -92,4 +101,87 @@ code {
 .form-control:focus {
   border-color: #86b7fe;
   box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Authentication Page Styling */
+.auth-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.auth-card {
+  border-radius: 20px !important;
+  border: none !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15) !important;
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+}
+
+.auth-card .card-body {
+  padding: 2.5rem !important;
+}
+
+/* Enhanced form controls for auth pages */
+.auth-card .form-control {
+  border-radius: 12px !important;
+  border: 1px solid #e2e8f0;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.auth-card .form-control:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  transform: translateY(-1px);
+}
+
+.auth-card .input-group .form-control {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
+.auth-card .input-group .btn {
+  border-radius: 0 12px 12px 0 !important;
+  border-left: none;
+}
+
+/* Enhanced buttons for auth pages */
+.auth-card .btn {
+  border-radius: 12px !important;
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.auth-card .btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.auth-card .btn-primary {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  border: none;
+}
+
+.auth-card .btn-outline-secondary {
+  border-color: #e2e8f0;
+}
+
+/* Enhanced alerts for auth pages */
+.auth-card .alert {
+  border-radius: 12px !important;
+  border: none;
+  padding: 1rem 1.25rem;
+}
+
+/* Progress bar styling for password strength */
+.auth-card .progress {
+  border-radius: 6px !important;
+  overflow: hidden;
+}
+
+/* Form check styling */
+.auth-card .form-check-input {
+  border-radius: 6px;
 }

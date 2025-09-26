@@ -7,8 +7,8 @@ WORKDIR /usr/src/app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install dependencies (production only)
+RUN npm ci --omit=dev || npm install --omit=dev
 
 # Copy source code
 COPY . .
@@ -22,12 +22,14 @@ RUN chown -R nodejs:nodejs /usr/src/app
 USER nodejs
 
 # Expose port
-EXPOSE 5000
+EXPOSE ${BACKEND_PORT}
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "const http = require('http'); \
-    http.get('http://localhost:5000/api/health', (res) => { \
+    const port = process.env.BACKEND_PORT; \
+    const serverIP = process.env.IP; \
+    http.get(\`http://\${serverIP}:\${port}/api/health\`, (res) => { \
       if (res.statusCode === 200) process.exit(0); \
       else process.exit(1); \
     }).on('error', () => process.exit(1));"

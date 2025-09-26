@@ -8,22 +8,13 @@ const getApiBaseUrl = () => {
     return process.env.REACT_APP_API_URL;
   }
   
-  // For development or when running locally
-  if (process.env.NODE_ENV === 'development') {
-    return 'http://localhost:5000/api';
-  }
-  
   // For production, try to use the same host as the frontend
   const protocol = window.location.protocol;
   const hostname = window.location.hostname;
   
-  // If running on localhost or 127.0.0.1, use localhost for API
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://localhost:5000/api';
-  }
-  
-  // Otherwise, use the same hostname as the frontend
-  return `${protocol}//${hostname}:5000/api`;
+  // Always use the current hostname for API in production
+  const backendPort = process.env.REACT_APP_BACKEND_PORT;
+  return `${protocol}//${hostname}:${backendPort}/api`;
 };
 
 const API_BASE_URL = getApiBaseUrl();

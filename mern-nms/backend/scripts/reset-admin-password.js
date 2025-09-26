@@ -7,9 +7,9 @@ dotenv.config({ path: require('path').join(__dirname, '..', '.env') });
 
 (async () => {
   try {
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/nms_db';
+    const mongoUri = process.env.MONGODB_URI;
     const username = process.argv[2] || process.env.ADMIN_USERNAME || 'admin';
-    const newPassword = process.argv[3] || 'admin123';
+    const newPassword = process.argv[3] || process.env.ADMIN_PASSWORD;
 
     if (!newPassword || newPassword.length < 6) {
       console.error('New password must be at least 6 characters.');

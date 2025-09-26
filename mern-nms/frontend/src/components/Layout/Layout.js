@@ -18,7 +18,7 @@ const Reports = React.lazy(() => import('../Reports/Reports'));
 
 const Layout = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
 
   const handleSectionChange = (sectionId, path) => {
     setActiveSection(sectionId);
