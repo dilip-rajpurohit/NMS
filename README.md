@@ -332,6 +332,4 @@ This project is licensed under the **MIT License** - see the [LICENSE](mern-nms/
 
 [🐛 Report Bug](https://github.com/dilip-rajpurohit/NMS/issues) · [✨ Request Feature](https://github.com/dilip-rajpurohit/NMS/issues) · [� Discussions](https://github.com/dilip-rajpurohit/NMS/discussions)
 
-Made with ❤️ by [Dilip Rajpurohit](https://github.com/dilip-rajpurohit)
-
 </div>
