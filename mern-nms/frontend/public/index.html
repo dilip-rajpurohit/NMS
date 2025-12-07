@@ -6,10 +6,95 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#000000" />
     <meta name="description" content="Network Management System - Monitor and manage your network infrastructure" />
-    <title>NMS - Network Management System</title>
+    
+    <!-- Preload critical resources -->
+    <link rel="preload" href="https://unpkg.com/feather-icons@4.29.0/dist/feather.min.js" as="script">
+    
+    <!-- Critical CSS to prevent FOUC -->
+    <style>
+      /* Critical CSS - Theme variables and basic layout */
+      :root {
+        --primary-blue: #2563eb;
+        --primary-background: #0f1419;
+        --text-primary: #f1f5f9;
+        --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      }
+      
+      html.light-theme, body.light-theme {
+        --primary-background: #ffffff;
+        --text-primary: #1e293b;
+      }
+      
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: var(--font-family);
+        background-color: var(--primary-background);
+        color: var(--text-primary);
+        transition: background-color 0.3s ease, color 0.3s ease;
+        opacity: 0;
+        animation: fadeIn 0.3s ease-in-out forwards;
+      }
+      
+      @keyframes fadeIn {
+        to { opacity: 1; }
+      }
+      
+      #root {
+        min-height: 100vh;
+      }
+      
+      /* Loading state */
+      .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: var(--primary-background);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+    </style>
+    
+    <title>NetWatch - Network Management System</title>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
+    
+    <!-- Loading overlay to prevent FOUC -->
+    <div id="loading-overlay" class="loading-overlay">
+      <div style="text-align: center; color: var(--text-primary);">
+        <div style="width: 40px; height: 40px; border: 3px solid var(--primary-blue); border-radius: 50%; border-top: 3px solid transparent; animation: spin 1s linear infinite; margin: 0 auto 1rem;"></div>
+        <h3 style="margin: 0; font-weight: 600;">NMS</h3>
+        <p style="margin: 0.5rem 0 0; opacity: 0.7;">Loading Network Management System...</p>
+      </div>
+    </div>
+    
     <div id="root"></div>
+    
+    <style>
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
+    
+    <script>
+      // Remove loading overlay when React app loads
+      window.addEventListener('DOMContentLoaded', function() {
+        setTimeout(function() {
+          const overlay = document.getElementById('loading-overlay');
+          if (overlay) {
+            overlay.style.opacity = '0';
+            setTimeout(function() {
+              overlay.remove();
+            }, 300);
+          }
+        }, 100);
+      });
+    </script>
   </body>
 </html>

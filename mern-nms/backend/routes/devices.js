@@ -2,6 +2,7 @@ const express = require('express');
 const Device = require('../models/Device');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const SNMPManager = require('../utils/snmpManager');
+const logger = require('../utils/logger');
 const router = express.Router();
 
 // Initialize SNMP Manager
@@ -21,7 +22,7 @@ router.get('/', authenticateToken, async (req, res) => {
       sortOrder = 'desc'
     } = req.query;
     
-    const filter = { isActive: true };
+    const filter = {}; // Remove isActive filter since we now use hard deletion
     
     if (type) filter.deviceType = type;
     if (status) filter.status = status;
@@ -48,7 +49,7 @@ router.get('/', authenticateToken, async (req, res) => {
     
     // Get device statistics
     const stats = await Device.aggregate([
-      { $match: { isActive: true } },
+      { $match: {} }, // Remove isActive filter since we now use hard deletion
       {
         $group: {
           _id: null,
@@ -79,7 +80,7 @@ router.get('/', authenticateToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Get devices error:', error);
+    logger.error('Get devices error:', error);
     res.status(500).json({
       error: 'Failed to fetch devices',
       message: error.message
@@ -99,7 +100,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     
     res.json(device);
   } catch (error) {
-    console.error('Get device error:', error);
+    logger.error('Get device error:', error);
     res.status(500).json({
       error: 'Failed to fetch device',
       message: error.message
@@ -112,8 +113,7 @@ router.post('/', authenticateToken, async (req, res) => {
   try {
     // Check if device with same IP already exists
     const existingDevice = await Device.findOne({ 
-      ipAddress: req.body.ipAddress,
-      isActive: true 
+      ipAddress: req.body.ipAddress
     });
     
     if (existingDevice) {
@@ -138,7 +138,7 @@ router.post('/', authenticateToken, async (req, res) => {
       device
     });
   } catch (error) {
-    console.error('Create device error:', error);
+    logger.error('Create device error:', error);
     res.status(500).json({
       error: 'Failed to create device',
       message: error.message
@@ -159,7 +159,6 @@ router.put('/:id', authenticateToken, async (req, res) => {
     if (req.body.ipAddress && req.body.ipAddress !== device.ipAddress) {
       const existingDevice = await Device.findOne({ 
         ipAddress: req.body.ipAddress,
-        isActive: true,
         _id: { $ne: req.params.id }
       });
       
@@ -178,7 +177,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       device
     });
   } catch (error) {
-    console.error('Update device error:', error);
+    logger.error('Update device error:', error);
     res.status(500).json({
       error: 'Failed to update device',
       message: error.message
@@ -186,26 +185,93 @@ router.put('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Delete device (soft delete)
+// Delete device (enhanced hard delete with comprehensive cleanup)
 router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const device = await Device.findById(req.params.id);
+    const deviceId = req.params.id;
     
-    if (!device) {
-      return res.status(404).json({ error: 'Device not found' });
+    // Validate ObjectId format
+    if (!deviceId.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ 
+        error: 'Invalid device ID format',
+        message: 'Please provide a valid device identifier'
+      });
     }
 
-    device.isActive = false;
-    await device.save();
+    // Find device first to get details for logging and cleanup
+    const device = await Device.findById(deviceId);
+    
+    if (!device) {
+      return res.status(404).json({ 
+        error: 'Device not found',
+        message: `Device with ID ${deviceId} does not exist`
+      });
+    }
+
+    logger.info(`🗑️  Initiating hard deletion for device: ${device.name} (${device.ipAddress})`);
+
+    // Perform hard deletion
+    const deletedDevice = await Device.findByIdAndDelete(deviceId);
+    
+    if (!deletedDevice) {
+      logger.error(`❌ Failed to delete device ${deviceId} - device not found during deletion`);
+      return res.status(404).json({ 
+        error: 'Device deletion failed',
+        message: 'Device was not found during deletion process'
+      });
+    }
+
+    // Enhanced real-time notifications
+    const io = req.app.get('socketio');
+    if (io) {
+      // Notify about device deletion
+      io.emit('device.deleted', { 
+        deviceId: deletedDevice._id,
+        name: deletedDevice.name,
+        ipAddress: deletedDevice.ipAddress,
+        timestamp: new Date()
+      });
+      
+      // Update dashboard statistics
+      const totalDevices = await Device.countDocuments();
+      const onlineDevices = await Device.countDocuments({ status: { $in: ['online', 'up'] } });
+      
+      io.emit('dashboard.statsUpdate', {
+        totalDevices,
+        onlineDevices,
+        offlineDevices: totalDevices - onlineDevices,
+        networkHealth: totalDevices > 0 ? Math.round((onlineDevices / totalDevices) * 100) : 0,
+        timestamp: new Date()
+      });
+    }
+
+    logger.info(`✅ Device ${deletedDevice.name} (${deletedDevice.ipAddress}) permanently deleted from database`);
     
     res.json({
-      message: 'Device deleted successfully'
+      success: true,
+      message: 'Device deleted permanently',
+      deletedDevice: {
+        id: deletedDevice._id,
+        name: deletedDevice.name,
+        ipAddress: deletedDevice.ipAddress,
+        deletedAt: new Date()
+      }
     });
+    
   } catch (error) {
-    console.error('Delete device error:', error);
+    logger.error('Delete device error:', error);
+    
+    // Handle specific error types
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        error: 'Invalid device ID',
+        message: 'The provided device ID is not valid'
+      });
+    }
+    
     res.status(500).json({
       error: 'Failed to delete device',
-      message: error.message
+      message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
@@ -229,7 +295,7 @@ router.get('/:id/metrics', authenticateToken, async (req, res) => {
       uptime: device.uptimeString
     });
   } catch (error) {
-    console.error('Get device metrics error:', error);
+    logger.error('Get device metrics error:', error);
     res.status(500).json({
       error: 'Failed to fetch device metrics',
       message: error.message
@@ -264,7 +330,7 @@ router.patch('/:id/status', authenticateToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Update device status error:', error);
+    logger.error('Update device status error:', error);
     res.status(500).json({
       error: 'Failed to update device status',
       message: error.message
@@ -300,7 +366,7 @@ router.post('/:id/alerts', authenticateToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Add alert error:', error);
+    logger.error('Add alert error:', error);
     res.status(500).json({
       error: 'Failed to add alert',
       message: error.message
@@ -323,7 +389,7 @@ router.patch('/:id/alerts/:alertId/acknowledge', authenticateToken, async (req, 
       message: 'Alert acknowledged successfully'
     });
   } catch (error) {
-    console.error('Acknowledge alert error:', error);
+    logger.error('Acknowledge alert error:', error);
     res.status(500).json({
       error: 'Failed to acknowledge alert',
       message: error.message
@@ -343,7 +409,7 @@ router.post('/bulk/update-status', authenticateToken, requireAdmin, async (req, 
     }
 
     const result = await Device.updateMany(
-      { _id: { $in: deviceIds }, isActive: true },
+      { _id: { $in: deviceIds } },
       { 
         status: status,
         'metrics.lastSeen': new Date()
@@ -355,7 +421,7 @@ router.post('/bulk/update-status', authenticateToken, requireAdmin, async (req, 
       modifiedCount: result.modifiedCount
     });
   } catch (error) {
-    console.error('Bulk update error:', error);
+    logger.error('Bulk update error:', error);
     res.status(500).json({
       error: 'Failed to update devices',
       message: error.message
@@ -369,7 +435,7 @@ router.get('/type/:type', authenticateToken, async (req, res) => {
     const devices = await Device.findByType(req.params.type);
     res.json(devices);
   } catch (error) {
-    console.error('Get devices by type error:', error);
+    logger.error('Get devices by type error:', error);
     res.status(500).json({
       error: 'Failed to fetch devices by type',
       message: error.message
@@ -386,7 +452,7 @@ router.get('/location/:building', authenticateToken, async (req, res) => {
     const devices = await Device.findByLocation(building, floor, room);
     res.json(devices);
   } catch (error) {
-    console.error('Get devices by location error:', error);
+    logger.error('Get devices by location error:', error);
     res.status(500).json({
       error: 'Failed to fetch devices by location',
       message: error.message
@@ -400,7 +466,7 @@ router.get('/alerts/active', authenticateToken, async (req, res) => {
     const devices = await Device.findWithAlerts();
     res.json(devices);
   } catch (error) {
-    console.error('Get devices with alerts error:', error);
+    logger.error('Get devices with alerts error:', error);
     res.status(500).json({
       error: 'Failed to fetch devices with alerts',
       message: error.message
@@ -417,10 +483,11 @@ router.post('/:id/snmp-poll', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Device not found' });
     }
 
-    // Perform SNMP discovery
+    // Perform SNMP discovery (include 'snmp' in methods)
     const discoveryResult = await snmpManager.discoverDevice(
-      device.ipAddress, 
-      device.snmpCommunity || 'public'
+      device.ipAddress,
+      device.snmpCommunity || 'public',
+      ['ping', 'arp', 'port-scan', 'snmp']
     );
 
     if (discoveryResult.success) {
@@ -450,7 +517,7 @@ router.post('/:id/snmp-poll', authenticateToken, async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('SNMP polling error:', error);
+    logger.error('SNMP polling error:', error);
     res.status(500).json({
       error: 'Failed to perform SNMP polling',
       message: error.message
@@ -469,8 +536,7 @@ router.post('/discover', authenticateToken, async (req, res) => {
 
     // Check if device already exists
     const existingDevice = await Device.findOne({ 
-      ipAddress, 
-      isActive: true 
+      ipAddress
     });
     
     if (existingDevice) {
@@ -514,7 +580,7 @@ router.post('/discover', authenticateToken, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Device discovery error:', error);
+    logger.error('Device discovery error:', error);
     res.status(500).json({
       error: 'Failed to discover device',
       message: error.message
@@ -564,7 +630,7 @@ router.get('/:id/performance/history', authenticateToken, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Performance history error:', error);
+    logger.error('Performance history error:', error);
     res.status(500).json({
       error: 'Failed to fetch performance history',
       message: error.message
@@ -572,40 +638,7 @@ router.get('/:id/performance/history', authenticateToken, async (req, res) => {
   }
 });
 
-module.exports = router;
-
-// Create new device
-router.post('/', authenticateToken, async (req, res) => {
-  try {
-    const deviceData = req.body;
-    
-    // Check if device with same IP already exists
-    const existingDevice = await Device.findOne({ ipAddress: deviceData.ipAddress });
-    if (existingDevice) {
-      return res.status(400).json({
-        error: 'Device with this IP address already exists'
-      });
-    }
-
-    const device = new Device(deviceData);
-    await device.save();
-
-    // Emit real-time update
-    const io = req.app.get('socketio');
-    io.emit('device.created', device);
-
-    res.status(201).json({
-      message: 'Device created successfully',
-      device
-    });
-  } catch (error) {
-    console.error('Create device error:', error);
-    res.status(500).json({
-      error: 'Failed to create device',
-      message: error.message
-    });
-  }
-});
+// Routes continue below...
 
 // Update device
 router.put('/:id', authenticateToken, async (req, res) => {
@@ -629,7 +662,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       device
     });
   } catch (error) {
-    console.error('Update device error:', error);
+    logger.error('Update device error:', error);
     res.status(500).json({
       error: 'Failed to update device',
       message: error.message
@@ -637,23 +670,28 @@ router.put('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Delete device
+// Delete device (hard delete)
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const device = await Device.findByIdAndDelete(req.params.id);
+    
     if (!device) {
       return res.status(404).json({ error: 'Device not found' });
     }
 
     // Emit real-time update
     const io = req.app.get('socketio');
-    io.emit('device.deleted', { id: req.params.id });
+    if (io) {
+      io.emit('device.deleted', { id: req.params.id });
+    }
+
+    logger.info(`Device permanently deleted: ${device.name} (${device.ipAddress})`);
 
     res.json({
-      message: 'Device deleted successfully'
+      message: 'Device deleted permanently'
     });
   } catch (error) {
-    console.error('Delete device error:', error);
+    logger.error('Delete device error:', error);
     res.status(500).json({
       error: 'Failed to delete device',
       message: error.message
@@ -696,7 +734,7 @@ router.post('/:id/metrics', authenticateToken, async (req, res) => {
       metrics: device.metrics
     });
   } catch (error) {
-    console.error('Update metrics error:', error);
+    logger.error('Update metrics error:', error);
     res.status(500).json({
       error: 'Failed to update metrics',
       message: error.message
@@ -750,7 +788,7 @@ router.get('/stats/overview', authenticateToken, async (req, res) => {
       hosts: 0
     });
   } catch (error) {
-    console.error('Get stats error:', error);
+    logger.error('Get stats error:', error);
     res.status(500).json({
       error: 'Failed to fetch statistics',
       message: error.message

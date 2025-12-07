@@ -70,7 +70,14 @@ class ErrorBoundary extends React.Component {
                   <i className="fas fa-redo me-2"></i>
                   Try Again
                 </Button>
-                <Button variant="outline-secondary" onClick={() => window.location.reload()}>
+                <Button variant="outline-secondary" onClick={() => {
+                  try {
+                    window.location.reload();
+                  } catch (error) {
+                    // Fallback if reload fails
+                    console.error('Failed to reload page:', error);
+                  }
+                }}>
                   <i className="fas fa-sync-alt me-2"></i>
                   Reload Page
                 </Button>

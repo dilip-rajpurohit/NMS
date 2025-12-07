@@ -13,6 +13,12 @@
   --warning-color: #ffc107;
   --danger-color: #dc3545;
   --info-color: #17a2b8;
+  
+  /* Notification backgrounds */
+  --warning-background: rgba(255, 193, 7, 0.1);
+  --danger-background: rgba(220, 53, 69, 0.1);
+  --success-background: rgba(40, 167, 69, 0.1);
+  --info-background: rgba(23, 162, 184, 0.1);
 }
 
 /* Global body styling */
@@ -23,19 +29,20 @@ body {
 }
 
 /* Dark theme for Bootstrap components */
-.card {
+/* Exclude profile settings from global card styles */
+.card:not(.profile-settings .card):not(.profile-settings *) {
   background-color: var(--bg-secondary) !important;
   border: 1px solid var(--border-color) !important;
   color: var(--text-primary) !important;
 }
 
-.card-header {
+.card-header:not(.profile-settings .card-header):not(.profile-settings *) {
   background-color: var(--bg-tertiary) !important;
   border-bottom: 1px solid var(--border-color) !important;
   color: var(--text-primary) !important;
 }
 
-.card-body {
+.card-body:not(.profile-settings .card-body):not(.profile-settings *) {
   background-color: var(--bg-secondary) !important;
   color: var(--text-primary) !important;
 }
@@ -59,43 +66,43 @@ body {
   color: var(--text-primary) !important;
 }
 
-/* Form controls */
-.form-control {
+/* Form controls - exclude profile settings */
+.form-control:not(.profile-settings .form-control):not(.profile-settings *) {
   background-color: var(--bg-tertiary) !important;
   border: 1px solid var(--border-color) !important;
   color: var(--text-primary) !important;
 }
 
-.form-control:focus {
+.form-control:not(.profile-settings .form-control):not(.profile-settings *):focus {
   background-color: var(--bg-tertiary) !important;
   border-color: var(--primary-color) !important;
   color: var(--text-primary) !important;
   box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
 }
 
-.form-control::placeholder {
+.form-control:not(.profile-settings .form-control):not(.profile-settings *)::placeholder {
   color: var(--text-muted) !important;
 }
 
-.form-select {
+.form-select:not(.profile-settings .form-select):not(.profile-settings *) {
   background-color: var(--bg-tertiary) !important;
   border: 1px solid var(--border-color) !important;
   color: var(--text-primary) !important;
 }
 
-.form-select:focus {
+.form-select:not(.profile-settings .form-select):not(.profile-settings *):focus {
   background-color: var(--bg-tertiary) !important;
   border-color: var(--primary-color) !important;
   color: var(--text-primary) !important;
 }
 
-/* Buttons */
-.btn-outline-secondary {
+/* Buttons - exclude profile settings */
+.btn-outline-secondary:not(.profile-settings .btn-outline-secondary):not(.profile-settings *) {
   color: var(--text-secondary) !important;
   border-color: var(--border-color) !important;
 }
 
-.btn-outline-secondary:hover {
+.btn-outline-secondary:not(.profile-settings .btn-outline-secondary):not(.profile-settings *):hover {
   background-color: var(--bg-tertiary) !important;
   border-color: var(--border-color) !important;
   color: var(--text-primary) !important;

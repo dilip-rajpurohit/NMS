@@ -1,336 +1,289 @@
-# 🌐 Network Management System (NMS)
+# Network Management System (NMS)
 
-> **Professional Network Monitoring Suite** - A modern MERN stack Network Management System with elegant UI, automated deployment, and comprehensive real-time monitoring capabilities.
+## 🚀 Production-Ready Enterprise Network Monitoring
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Docker](https://img.shields.io/badge/Docker-Enabled-2496ED.svg)](https://www.docker.com/)
-[![React](https://img.shields.io/badge/React-18-61DAFB.svg)](https://reactjs.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-18-339933.svg)](https://nodejs.org/)
+A comprehensive, real-world network management system built with the MERN stack, featuring advanced monitoring, analytics, and configuration management capabilities.
 
-## ✨ Key Features
+**Last Updated**: December 7, 2025  
+**Version**: 2.0.0  
+**Status**: Production Ready ✅
 
-### 🎨 **Modern Interface** *(Recently Enhanced)*
-- **Elegant Authentication** - Smooth 20px rounded corners, gradient backgrounds, professional styling
-- **Responsive Sidebar** - Hover-expand navigation with 20px icons, smooth animations and perfect alignment  
-- **Enhanced Form Controls** - 12px border-radius, smooth transitions, no visual shifting
-- **Dark/Light Themes** - Consistent design system with enhanced visual hierarchy
-- **Mobile-First Design** - Fully responsive across all devices
+## ✨ Features
 
-### 🔧 **Core Functionality**
-- **📊 Real-time Monitoring** - Live network metrics and device status tracking
-- **🔍 SNMP Discovery** - Automated network scanning and device identification
-- **🚨 Smart Alerts** - Configurable notifications for network events
-- **👥 User Management** - Secure role-based access control system
-- **🌐 Multi-Device Access** - Responsive design works on any device
-- **⚡ One-Command Deploy** - Complete Docker containerization
+### 📊 Executive Dashboard
+- **Network Health Scoring** - Real-time network performance assessment
+- **Device Management** - Comprehensive device inventory and monitoring
+- **Critical Alerts** - Immediate notification of network issues
+- **Performance Metrics** - CPU, memory, bandwidth utilization tracking
 
-## 🚀 Quick Deploy
+### 📈 Advanced Reports & Analytics
+- **Performance Analysis** - Time-series performance data with trend analysis
+- **Availability & SLA Monitoring** - Uptime tracking and SLA compliance
+- **Capacity Planning** - Forecasting and resource planning with 30-day predictions
+- **Scheduled Reports** - Automated report generation and delivery
+- **Export Capabilities** - CSV, PDF, and Excel export options
+
+### ⚙️ Network Configuration Management
+- **VLAN Management** - Virtual LAN configuration and deployment
+- **Routing Protocols** - OSPF, BGP, and static routing configuration
+- **QoS Policies** - Quality of Service traffic prioritization
+- **Security Configuration** - Firewall rules, VPN, and access control
+- **Deployment Management** - Automated configuration deployment to devices
+
+### 🔒 Security & Authentication
+- **JWT Authentication** - Secure user sessions
+- **Role-Based Access Control** - Admin and user permission levels
+- **Audit Logging** - Complete activity tracking
+- **Session Management** - Secure session handling
+
+## 🏗️ Architecture
+
+### Backend (Node.js/Express)
+```
+├── models/           # MongoDB schemas
+│   ├── Device.js           # Device inventory and status
+│   ├── NetworkMetrics.js   # Performance metrics collection
+│   ├── NetworkReport.js    # Advanced reporting framework
+│   ├── NetworkConfiguration.js # Network config management
+│   └── User.js             # User authentication
+├── routes/           # API endpoints
+│   ├── auth.js            # Authentication routes
+│   ├── devices.js         # Device management
+│   ├── reports.js         # Advanced reporting APIs
+│   ├── dashboard.js       # Dashboard analytics
+│   └── admin.js           # Administrative functions
+├── services/         # Business logic
+│   ├── advancedSNMPMonitor.js    # SNMP monitoring
+│   ├── advancedNetworkAnalytics.js # Network analytics
+│   └── alertService.js           # Alert management
+└── middleware/       # Authentication & validation
+```
+
+### Frontend (React.js)
+```
+├── components/
+│   ├── Dashboard/         # Real-time monitoring dashboards
+│   ├── Reports/           # Production reporting interface
+│   ├── Admin/             # Administrative panels
+│   │   ├── NetworkConfiguration.js # Network config UI
+│   │   ├── UsersManagement.js     # User management
+│   │   └── SystemSettings.js      # System configuration
+│   ├── Auth/              # Login and authentication
+│   └── Layout/            # Navigation and layout
+├── context/               # React context for state
+├── services/              # API communication
+└── styles/                # CSS and styling
+```
+
+## 🚀 Quick Start
 
 ### Prerequisites
-- **Docker & Docker Compose** (Latest versions recommended)
-- **4GB RAM minimum** for optimal performance
-- **Network access** to target devices for monitoring
+- **Docker Desktop** (Windows/macOS) or **Docker Engine** (Linux)
+- **Git** for repository cloning
+- **4GB RAM minimum** (8GB recommended)
+- **5GB free disk space**
+- **Node.js 18+** (for development)
 
-### 🎯 One-Command Deploy
+### Installation
+
+#### Linux/macOS (Updated December 2025)
 ```bash
-git clone https://github.com/dilip-rajpurohit/NMS.git
+# Clone the repository
+git clone <repository-url>
 cd NMS/mern-nms
-chmod +x deploy.sh
+
+# Deploy with automatic configuration
 ./deploy.sh --non-interactive
-```
 
-**That's it!** 🎉 Access from any device: `http://[YOUR-IP]:3000`
-
-### 🔑 Default Credentials
-- **Username**: `admin`
-- **Password**: `admin123`
-- **Email**: `admin@example.com`
-
-> ⚠️ **Security Note**: Change default credentials after first login
-
-## 🛠️ Technology Stack
-
-### Frontend
-- **React 18** - Modern component-based UI framework
-- **Bootstrap 5** - Responsive design system
-- **Chart.js** - Beautiful data visualization
-- **Socket.io Client** - Real-time data updates
-
-### Backend  
-- **Node.js 18** - JavaScript runtime
-- **Express.js** - Web application framework
-- **MongoDB** - NoSQL database
-- **JWT** - Secure authentication
-- **SNMP** - Network protocol support
-
-### Infrastructure
-- **Docker** - Containerization platform
-- **Docker Compose** - Multi-container orchestration
-- **Nginx** - High-performance web server
-- **Alpine Linux** - Lightweight container base
-
-## 📁 Project Structure
-
-```
-NMS/                             # 🏠 Root project directory
-├── .gitignore                   # 🚫 Git ignore configuration
-├── README.md                    # 📖 Project documentation  
-└── mern-nms/                   # 🏠 Main application directory
-    ├── backend/                 # 🚀 Express.js API Server
-    │   ├── middleware/          # 🔒 Express middleware
-    │   │   └── auth.js         # JWT authentication
-    │   ├── models/             # 🗃️ MongoDB data models
-    │   │   ├── Device.js       # Network device schema
-    │   │   ├── Topology.js     # Network topology schema
-    │   │   └── User.js         # User authentication schema
-    │   ├── routes/             # 🛣️ API endpoints
-    │   │   ├── admin.js        # Admin management APIs
-    │   │   ├── alerts.js       # Alert system APIs
-    │   │   ├── auth.js         # Authentication APIs
-    │   │   ├── dashboard.js    # Dashboard data APIs
-    │   │   ├── devices.js      # Device management APIs
-    │   │   ├── discovery.js    # Network discovery APIs
-    │   │   └── metrics.js      # Performance metrics APIs
-    │   ├── scripts/            # 🔧 Backend utilities
-    │   │   └── reset-admin-password.js # Password reset utility
-    │   ├── utils/              # 🛠️ Helper functions
-    │   │   ├── logger.js       # Logging utility
-    │   │   └── snmpManager.js  # SNMP operations
-    │   ├── Dockerfile          # 🐳 Backend container config
-    │   ├── .dockerignore       # 🚫 Docker ignore rules
-    │   ├── package.json        # 📦 Backend dependencies
-    │   ├── package-lock.json   # 🔒 Dependency lock file
-    │   └── server.js           # 🎯 Main server entry point
-    ├── frontend/               # ⚛️ React Application
-    │   ├── public/             # 🌐 Static assets
-    │   │   ├── health          # ❤️ Health check endpoint
-    │   │   └── index.html      # 📄 Main HTML template
-    │   ├── src/               # 💻 React source code
-    │   │   ├── assets/        # 🎨 UI assets
-    │   │   │   └── logo-mark.svg # 🏷️ Brand logo
-    │   │   ├── components/    # 🧩 React components
-    │   │   │   ├── Admin/     # 👑 Admin management UI
-    │   │   │   │   ├── NetworkConfiguration.js
-    │   │   │   │   ├── SystemSettings.js
-    │   │   │   │   └── UsersManagement.js
-    │   │   │   ├── Auth/      # � Authentication UI
-    │   │   │   │   └── Login.js # Enhanced login/signup
-    │   │   │   ├── Dashboard/ # 📊 Main dashboard components
-    │   │   │   │   ├── Dashboard.js
-    │   │   │   │   ├── Devices.js
-    │   │   │   │   ├── Discovery.js
-    │   │   │   │   ├── Metrics.js
-    │   │   │   │   └── Topology.js
-    │   │   │   ├── Layout/    # 🏗️ Navigation & layout
-    │   │   │   │   ├── Header.js
-    │   │   │   │   ├── Layout.js
-    │   │   │   │   └── Sidebar.js # Enhanced hover navigation
-    │   │   │   ├── Profile/   # � User profile management
-    │   │   │   │   └── ProfileSettings.js
-    │   │   │   ├── Reports/   # 📈 Reporting system
-    │   │   │   │   └── Reports.js
-    │   │   │   ├── shared/    # 🔄 Shared components
-    │   │   │   │   ├── CommonComponents.js
-    │   │   │   │   └── ErrorBoundary.js
-    │   │   │   └── Alerts.js  # 🚨 Alert components
-    │   │   ├── context/       # 🔗 React context providers
-    │   │   │   ├── AuthContext.js # Authentication state
-    │   │   │   └── SocketContext.js # Real-time connections
-    │   │   ├── services/      # 🌐 API services
-    │   │   │   └── api.js     # API service layer
-    │   │   ├── styles/        # 🎨 CSS stylesheets
-    │   │   │   ├── dark-theme.css # 🌙 Dark mode styles
-    │   │   │   ├── enhanced.css   # ✨ Enhanced UI styles
-    │   │   │   └── sidebar.css    # 📱 Responsive sidebar
-    │   │   ├── utils/         # 🛠️ Frontend utilities
-    │   │   │   ├── common.js      # Common utilities
-    │   │   │   ├── ErrorHandler.js # Error handling
-    │   │   │   └── validation.js   # Input validation
-    │   │   ├── App.js         # 🏠 Main React component
-    │   │   ├── index.css      # � Global styles with auth enhancements
-    │   │   └── index.js       # 🚀 React entry point
-    │   ├── default.conf.template  # ⚙️ Nginx configuration
-    │   ├── docker-entrypoint.sh  # 🐳 Container startup script
-    │   ├── Dockerfile         # 🐳 Frontend container config
-    │   ├── .dockerignore      # 🚫 Docker ignore rules
-    │   ├── package.json       # 📦 Frontend dependencies
-    │   └── package-lock.json  # 🔒 Dependency lock file
-    ├── scripts/               # 🛠️ Utility scripts
-    │   ├── auto-detect-ip.sh  # 🌐 Automatic IP detection
-    │   └── get-server-ip.js   # 🌐 Server IP configuration
-    ├── CROSS_PLATFORM_SETUP.md # 🔧 Cross-platform setup guide
-    ├── DEPLOYMENT.md          # 📚 Detailed deployment guide
-    ├── deploy.sh              # ⭐ One-command deployment script
-    ├── docker-compose.yml     # 🐳 Container orchestration
-    ├── .env.template          # 🔧 Environment configuration template
-    ├── LICENSE                # 📄 MIT License
-    ├── mongo-init.js          # 🗄️ Database initialization
-    └── NETWORK_ACCESS_GUIDE.md # 🌐 Network troubleshooting
-
-```
-## 📱 Network Access & Usage
-
-### Multi-Device Access
-Deploy once, access everywhere:
-- **💻 Laptops/Desktops**: `http://[SERVER-IP]:3000`
-- **📱 Phones/Tablets**: Same URL with full responsive design
-- **🌐 Remote Access**: Configure port forwarding for internet access
-
-### Core Workflows
-1. **📊 Dashboard** - Real-time network overview
-2. **🔍 Discovery** - Scan and add network devices
-3. **📈 Monitoring** - Track device performance
-4. **🚨 Alerts** - Configure notifications
-5. **👥 Administration** - Manage users and settings
-
-## 🔧 Advanced Configuration
-
-### Interactive Deployment (Custom Settings)
-```bash
+# Or deploy with custom settings (recommended)
 ./deploy.sh
-# Configure IP address, ports, passwords, CORS settings
 ```
 
-### Manual Docker Commands
-```bash
-# View live logs
-docker compose logs -f
+#### Windows
+```cmd
+# Clone the repository
+git clone <repository-url>
+cd NMS\mern-nms
 
-# Restart specific service
-docker compose restart frontend
-
-# Stop all services
-docker compose down
-
-# Rebuild and restart
-docker compose up --build -d
+# Deploy the system
+deploy.bat
 ```
+
+### Access the System
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:5000
+- **Default Admin**: admin@localhost / admin123
+
+## 🔧 Configuration
 
 ### Environment Variables
-Key configuration options in `.env`:
+Create a `.env` file in the backend directory:
 ```env
-# Network Configuration
-SERVER_IP=auto-detect
-FRONTEND_PORT=3000
-BACKEND_PORT=5000
-
-# Database
-MONGO_INITDB_ROOT_PASSWORD=mongo123
-DB_NAME=nms_db
-
-# Security
-JWT_SECRET=auto-generated
-ADMIN_PASSWORD=admin123
+NODE_ENV=production
+PORT=5000
+MONGODB_URI=mongodb://nms-mongodb:27017/nms
+JWT_SECRET=your-secure-jwt-secret
+CORS_ORIGIN=http://localhost:3000
 ```
 
-## 🔒 Security Features
-
-- **🔐 JWT Authentication** - Secure token-based auth
-- **🔒 Password Hashing** - bcrypt encryption
-- **🛡️ CORS Protection** - Cross-origin request security
-- **⚡ Rate Limiting** - API abuse prevention  
-- **🐳 Container Isolation** - Sandboxed execution
-- **🚫 Input Validation** - SQL injection prevention
-
-## 📊 Network Protocols
-
-- **SNMP v1/v2c/v3** - Device monitoring
-- **ICMP Ping** - Connectivity testing
-- **HTTP/HTTPS** - Web device management
-- **WebSocket** - Real-time updates
-- **REST API** - Service integration
-
-## 🌍 Port Configuration
-
-| Service | Port | Protocol | Description |
-|---------|------|----------|-------------|
-| Frontend | 3000 | HTTP | Web Interface |
-| Backend API | 5000 | HTTP | REST API |
-| MongoDB | 27017 | TCP | Database |
-| SNMP | 161 | UDP | Device Queries |
-
-## 🚀 Performance Optimization
-
-- **⚡ React 18** - Concurrent rendering
-- **🔄 Real-time Updates** - Socket.io optimization  
-- **📦 Container Caching** - Fast deployments
-- **🗜️ Asset Compression** - Nginx gzip
-- **🎯 Lazy Loading** - Component optimization
-
-## � Documentation
-
-- **📖 [DEPLOYMENT.md](mern-nms/DEPLOYMENT.md)** - Comprehensive deployment guide
-- **🌐 [NETWORK_ACCESS_GUIDE.md](mern-nms/NETWORK_ACCESS_GUIDE.md)** - Network troubleshooting
-- **🔧 [CROSS_PLATFORM_SETUP.md](mern-nms/CROSS_PLATFORM_SETUP.md)** - Platform-specific setup
-
-## � Troubleshooting
-
-### Common Issues
-
-**🔴 Container won't start**
+### Network Access
+For multi-device access, ensure the system accepts connections from any IP:
 ```bash
-docker compose down && docker compose up -d
+# Allow external connections
+./deploy.sh --allow-external
 ```
 
-**🔴 Frontend not accessible**
-- Check firewall settings
-- Verify IP address detection
-- Review nginx logs: `docker compose logs frontend`
+## 📊 Production Data Models
 
-**🔴 Database connection failed**  
-- Ensure MongoDB container is healthy
-- Check logs: `docker compose logs mongodb`
+### Network Metrics
+- **Interface Statistics**: Bytes in/out, packets, errors, utilization
+- **System Performance**: CPU, memory, disk usage
+- **QoS Metrics**: Traffic classes, queue depths, dropped packets
+- **Health Scoring**: Composite network health calculations
 
-**🔴 SNMP discovery not working**
-- Verify network connectivity
-- Check SNMP community strings
-- Review device SNMP configuration
+### Reporting Framework
+- **SLA Monitoring**: Availability tracking and compliance
+- **Capacity Planning**: Resource forecasting and trend analysis
+- **Performance Analytics**: Time-series data analysis
+- **Compliance Reporting**: Automated regulatory compliance
+
+### Configuration Management
+- **VLAN Configuration**: ID, subnets, DHCP, security policies
+- **Routing Protocols**: OSPF areas, BGP peers, static routes
+- **Security Policies**: Firewall rules, VPN configurations
+- **QoS Policies**: Traffic classification and bandwidth management
+
+## 🔍 Monitoring Capabilities
+
+### Device Discovery
+- **Auto-Discovery**: Automatic network device detection
+- **SNMP Monitoring**: Real-time SNMP data collection
+- **Performance Tracking**: Continuous performance monitoring
+- **Alert Generation**: Intelligent alerting based on thresholds
+
+### Analytics
+- **Trend Analysis**: Historical performance trends
+- **Capacity Forecasting**: Predictive resource planning
+- **Traffic Analysis**: Network traffic patterns and top talkers
+- **Health Scoring**: Composite network health metrics
+
+## 🛡️ Security Features
+
+### Authentication & Authorization
+- **JWT Tokens**: Secure authentication mechanism
+- **Role-Based Access**: Admin and user permission levels
+- **Session Management**: Secure session handling
+- **Password Security**: Bcrypt hashing for passwords
+
+### Network Security
+- **Firewall Configuration**: Rule management and deployment
+- **VPN Management**: IPSec and SSL VPN configuration
+- **Access Control**: 802.1X and MAC address filtering
+- **Security Monitoring**: Real-time security event tracking
+
+## 📈 API Endpoints
+
+### Dashboard
+- `GET /api/dashboard` - Real-time dashboard data
+- `GET /api/dashboard/metrics` - Performance metrics
+- `GET /api/dashboard/alerts` - Active alerts
+
+### Reports
+- `GET /api/reports/dashboard` - Executive dashboard
+- `GET /api/reports/performance` - Performance analysis
+- `GET /api/reports/availability` - Availability tracking
+- `GET /api/reports/capacity` - Capacity planning
+
+### Device Management
+- `GET /api/devices` - Device inventory
+- `POST /api/devices/discover` - Device discovery
+- `PUT /api/devices/:id` - Update device
+- `DELETE /api/devices/:id` - Remove device
+
+### Configuration
+- `GET /api/network-config` - Network configurations
+- `POST /api/network-config/vlan` - VLAN configuration
+- `POST /api/network-config/routing` - Routing configuration
+- `POST /api/network-config/:id/deploy` - Deploy configuration
+
+## 🐳 Docker Configuration
+
+### Services
+- **nms-frontend**: React.js application (Port 3000)
+- **nms-backend**: Node.js API server (Port 5000)
+- **nms-mongodb**: MongoDB database (Port 27017)
+
+### Volumes
+- **mongodb-data**: Persistent database storage
+- **logs**: Application logging
+
+### Networks
+- **nms-network**: Internal container communication
+
+## 🔧 Development
+
+### Backend Development
+```bash
+cd backend
+npm install
+npm run dev
+```
+
+### Frontend Development
+```bash
+cd frontend
+npm install
+npm start
+```
+
+### Database Access
+```bash
+# Connect to MongoDB container
+docker exec -it nms-mongodb mongosh nms
+```
+
+## 📝 Production Deployment
+
+### Health Checks
+- **Frontend**: Nginx health endpoint
+- **Backend**: Express health endpoint
+- **Database**: MongoDB connection monitoring
+
+### Scaling
+- **Horizontal Scaling**: Multiple backend instances
+- **Load Balancing**: Nginx reverse proxy
+- **Database Replication**: MongoDB replica sets
+
+### Monitoring
+- **Application Logs**: Centralized logging
+- **Performance Metrics**: Real-time monitoring
+- **Alert Notifications**: Email and webhook alerts
 
 ## 🤝 Contributing
 
-We welcome contributions! Here's how to get started:
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Submit a pull request
 
-1. **🍴 Fork** the repository
-2. **🌿 Create** a feature branch
-3. **✨ Commit** your changes
-4. **📤 Push** to the branch  
-5. **🔄 Open** a Pull Request
+## 📄 License
 
-### Development Setup
-```bash
-git clone https://github.com/dilip-rajpurohit/NMS.git
-cd NMS/mern-nms
-# Set up development environment
-```
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 📈 Roadmap
+## 🆘 Support
 
-- [ ] **🔔 Advanced Alerting** - SMS, Email, Webhook notifications
-- [ ] **📊 Custom Dashboards** - Drag-and-drop interface
-- [ ] **🗺️ Network Topology** - Interactive network maps
-- [ ] **📱 Mobile App** - Native iOS/Android apps
-- [ ] **🔌 Plugin System** - Custom monitoring modules
-- [ ] **☁️ Cloud Integration** - AWS, Azure, GCP support
-
-## � License
-
-This project is licensed under the **MIT License** - see the [LICENSE](mern-nms/LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- **React Team** - Amazing frontend framework
-- **Express.js** - Robust backend framework  
-- **MongoDB** - Flexible database solution
-- **Docker** - Simplified deployment platform
-- **Community Contributors** - Bug reports and feature requests
+For issues and support:
+- **Documentation**: Check this README and inline comments
+- **Issues**: Report bugs via GitHub issues
+- **Configuration**: See environment variable documentation
 
 ---
 
-<div align="center">
+## 🎯 System Status
 
-**⭐ Star this repo if it helped you!**
-
-[🐛 Report Bug](https://github.com/dilip-rajpurohit/NMS/issues) · [✨ Request Feature](https://github.com/dilip-rajpurohit/NMS/issues) · [� Discussions](https://github.com/dilip-rajpurohit/NMS/discussions)
-
-
-</div>
+✅ **Production Ready**: Fully functional network management system
+✅ **Clean Codebase**: No debug files, optimized structure
+✅ **Comprehensive Features**: Enterprise-grade monitoring and configuration
+✅ **Docker Deployment**: Containerized for easy deployment
+✅ **Cross-Platform**: Works on Linux, macOS, and Windows

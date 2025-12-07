@@ -36,14 +36,21 @@ export const validators = {
     if (!value) return null;
     
     const errors = [];
-    if (value.length < 8) errors.push('at least 8 characters');
-    if (!/[A-Z]/.test(value)) errors.push('one uppercase letter');
-    if (!/[a-z]/.test(value)) errors.push('one lowercase letter');
-    if (!/[0-9]/.test(value)) errors.push('one number');
-    if (!/[!@#$%^&*]/.test(value)) errors.push('one special character');
+    if (value.length < 6) errors.push('at least 6 characters');
+    
+    // Check for at least 1 of these 4 criteria (more reasonable)
+    let criteriaCount = 0;
+    if (/[A-Z]/.test(value)) criteriaCount++;  // uppercase
+    if (/[a-z]/.test(value)) criteriaCount++;  // lowercase
+    if (/[0-9]/.test(value)) criteriaCount++;  // number
+    if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(value)) criteriaCount++; // special char
+    
+    if (criteriaCount < 1) {
+      errors.push('at least one of: uppercase letter, lowercase letter, number, or special character');
+    }
     
     if (errors.length > 0) {
-      return `Password must contain ${errors.join(', ')}`;
+      return `Password must contain ${errors.join(' and ')}`;
     }
     return null;
   },

@@ -76,6 +76,33 @@ const Metrics = () => {
     }
   }, [selectedDevice]);
 
+  // Lightweight function for background metrics updates
+  const fetchLiveMetrics = useCallback(async () => {
+    try {
+      // Fetch comprehensive device status data for background updates
+      const liveResponse = await api.get('/metrics/live');
+      const liveData = liveResponse.data;
+      
+      if (liveData) {
+        // Update network overview with all live data
+        setNetworkOverview(prev => ({
+          ...prev,
+          onlineDevices: liveData.onlineDevices ?? prev.onlineDevices,
+          offlineDevices: liveData.offlineDevices ?? prev.offlineDevices,
+          totalDevices: liveData.totalDevices ?? prev.totalDevices,
+          networkHealth: liveData.networkHealth ?? prev.networkHealth,
+          recentActivity: liveData.recentActivity ?? prev.recentActivity,
+          deviceTypes: liveData.deviceTypes ?? prev.deviceTypes
+        }));
+        setLastUpdated(new Date());
+      }
+    } catch (error) {
+      // Silent fail for background updates to avoid disrupting UX
+      console.debug('Live metrics update failed:', error.message);
+    }
+  }, []);
+
+  // Full metrics fetch (for initial load and manual refresh)
   const fetchMetrics = useCallback(async () => {
     try {
       setLoading(true);
@@ -97,12 +124,20 @@ const Metrics = () => {
         const deviceResponse = await api.get(`/metrics/devices/${selectedDevice}?timeRange=${timeRange}`, { headers });
         const deviceData = deviceResponse.data || {};
         
-        // Simulate performance data for demo purposes
+        // Use real performance data from device or empty arrays if no data
         setPerformanceData({
-          cpu: generateTimeSeriesData(24, 0, 100),
-          memory: generateTimeSeriesData(24, 0, 100),
-          network: generateTimeSeriesData(24, 0, 1000),
-          disk: generateTimeSeriesData(24, 0, 100)
+          cpu: deviceData.performanceData?.cpu || [],
+          memory: deviceData.performanceData?.memory || [],
+          network: deviceData.performanceData?.network || [],
+          disk: deviceData.performanceData?.disk || []
+        });
+      } else {
+        // Clear performance data when no device selected
+        setPerformanceData({
+          cpu: [],
+          memory: [],
+          network: [],
+          disk: []
         });
       }
       
@@ -115,27 +150,15 @@ const Metrics = () => {
     }
   }, [selectedDevice, timeRange]);
 
-  // Generate sample time series data
-  const generateTimeSeriesData = (points, min, max) => {
-    const data = [];
-    const now = new Date();
-    for (let i = points - 1; i >= 0; i--) {
-      const time = new Date(now.getTime() - i * 60 * 60 * 1000); // hourly intervals
-      const value = Math.floor(Math.random() * (max - min) + min);
-      data.push({ time: time.toISOString(), value });
-    }
-    return data;
-  };
-
-  // Initial load
+  // Initial load and background updates
   useEffect(() => {
     fetchDevices();
     fetchMetrics();
     
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(fetchMetrics, 30000);
+    // Use lightweight metrics for background updates
+    const interval = setInterval(fetchLiveMetrics, 30000);
     return () => clearInterval(interval);
-  }, [fetchDevices, fetchMetrics]);
+  }, [fetchDevices, fetchMetrics, fetchLiveMetrics]);
 
   // Fetch device-specific metrics when device changes
   useEffect(() => {
@@ -231,10 +254,9 @@ const Metrics = () => {
           <div className="d-flex justify-content-between align-items-center">
             <div>
               <h2 className="text-white mb-1">
-                <i className="fas fa-chart-bar me-2 text-success"></i>
+                <i className="fas fa-chart-bar me-2 text-primary"></i>
                 Performance Metrics
               </h2>
-              <p className="text-muted mb-0">Real-time network and device performance monitoring</p>
             </div>
             <div className="d-flex align-items-center">
               {connected ? (

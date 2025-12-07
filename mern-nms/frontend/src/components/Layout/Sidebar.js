@@ -1,23 +1,29 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import * as feather from 'feather-icons';
 
 const Sidebar = ({ activeItem, onItemClick, isCollapsed, onToggle }) => {
   const { user, logout } = useAuth();
 
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: 'fas fa-chart-pie', path: '/dashboard' },
-    { id: 'devices', label: 'Devices', icon: 'fas fa-microchip', path: '/devices' },
-    { id: 'topology', label: 'Network Topology', icon: 'fas fa-sitemap', path: '/topology' },
-    { id: 'discovery', label: 'Discovery', icon: 'fas fa-search-plus', path: '/discovery' },
-    { id: 'metrics', label: 'Metrics', icon: 'fas fa-chart-bar', path: '/metrics' },
-    { id: 'alerts', label: 'Alerts', icon: 'fas fa-bell', path: '/alerts' }
+  useEffect(() => {
+    // Initialize feather icons
+    feather.replace();
+  }, [isCollapsed]); // Re-run when sidebar collapses/expands
+
+  const mainNavItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: 'pie-chart', path: '/dashboard' },
+    { id: 'devices', label: 'Devices', icon: 'cpu', path: '/devices' },
+    { id: 'topology', label: 'Network Topology', icon: 'share-2', path: '/topology' },
+    { id: 'discovery', label: 'Discovery', icon: 'search', path: '/discovery' },
+    { id: 'metrics', label: 'Metrics', icon: 'bar-chart', path: '/metrics' },
+    { id: 'alerts', label: 'Alerts', icon: 'bell', path: '/alerts' }
   ];
 
-  const adminItems = [
-    { id: 'users', label: 'User Management', icon: 'fas fa-users-cog', path: '/admin/users' },
-    { id: 'network-config', label: 'Network Config', icon: 'fas fa-network-wired', path: '/admin/network' },
-    { id: 'system', label: 'System Settings', icon: 'fas fa-cogs', path: '/admin/system' },
-    { id: 'reports', label: 'Reports & Analytics', icon: 'fas fa-chart-line', path: '/admin/reports' }
+  const adminNavItems = [
+    { id: 'users', label: 'User Management', icon: 'users', path: '/admin/users' },
+    { id: 'network-config', label: 'Network Config', icon: 'wifi', path: '/admin/network' },
+    { id: 'system', label: 'System Settings', icon: 'settings', path: '/admin/system' },
+    { id: 'reports', label: 'Reports & Analytics', icon: 'trending-up', path: '/admin/reports' }
   ];
 
   return (
@@ -29,8 +35,8 @@ const Sidebar = ({ activeItem, onItemClick, isCollapsed, onToggle }) => {
       <div className="sidebar-header">
         <div className="logo-section">
           <div className="logo-container">
-            <i className="fas fa-cube logo-icon"></i>
-            {!isCollapsed && <span className="logo-text">NMS</span>}
+            <i data-feather="activity" className="logo-icon"></i>
+            {!isCollapsed && <span className="logo-text" style={{ color: 'var(--primary-blue)', fontWeight: 'bold' }}>NetWatch</span>}
           </div>
         </div>
 
@@ -39,7 +45,7 @@ const Sidebar = ({ activeItem, onItemClick, isCollapsed, onToggle }) => {
       <nav className="sidebar-nav">
         <div className="nav-section">
           <ul className="nav-list">
-            {menuItems.map(item => (
+            {mainNavItems.map(item => (
               <li key={item.id} className="nav-item">
                 <a
                   href="#"
@@ -51,7 +57,7 @@ const Sidebar = ({ activeItem, onItemClick, isCollapsed, onToggle }) => {
                   }}
                 >
                   <div className="nav-icon">
-                    <i className={item.icon}></i>
+                    <i data-feather={item.icon}></i>
                   </div>
                   {!isCollapsed && <span className="nav-label">{item.label}</span>}
                   {activeItem === item.id && <div className="nav-indicator"></div>}
@@ -65,7 +71,7 @@ const Sidebar = ({ activeItem, onItemClick, isCollapsed, onToggle }) => {
               <div className="section-divider"></div>
               {!isCollapsed && <div className="section-header">ADMIN</div>}
               <ul className="nav-list">
-                {adminItems.map(item => (
+                {adminNavItems.map(item => (
                   <li key={item.id} className="nav-item">
                     <a
                       href="#"
@@ -77,7 +83,7 @@ const Sidebar = ({ activeItem, onItemClick, isCollapsed, onToggle }) => {
                       }}
                     >
                       <div className="nav-icon">
-                        <i className={item.icon}></i>
+                        <i data-feather={item.icon}></i>
                       </div>
                       {!isCollapsed && <span className="nav-label">{item.label}</span>}
                       {activeItem === item.id && <div className="nav-indicator"></div>}
@@ -103,7 +109,20 @@ const Sidebar = ({ activeItem, onItemClick, isCollapsed, onToggle }) => {
                 }}
               >
                 <div className="nav-icon">
-                  <i className="fas fa-user-circle"></i>
+                  {user?.profile?.avatar ? (
+                    <img 
+                      src={user.profile.avatar} 
+                      alt="User Avatar" 
+                      style={{
+                        width: '20px',
+                        height: '20px',
+                        borderRadius: '50%',
+                        objectFit: 'cover'
+                      }}
+                    />
+                  ) : (
+                    <i data-feather="user"></i>
+                  )}
                 </div>
                 {!isCollapsed && (
                   <div className="profile-info">
@@ -120,7 +139,7 @@ const Sidebar = ({ activeItem, onItemClick, isCollapsed, onToggle }) => {
                 onClick={logout}
               >
                 <div className="nav-icon">
-                  <i className="fas fa-sign-out-alt"></i>
+                  <i data-feather="log-out"></i>
                 </div>
                 {!isCollapsed && <span className="nav-label">Logout</span>}
               </button>

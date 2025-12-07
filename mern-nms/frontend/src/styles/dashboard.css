@@ -1,0 +1,504 @@
+/* Properly Sized Dashboard - No Overlapping */
+.dashboard-container {
+  background: transparent !important;
+  padding: 16px !important; /* Reduced from 24px */
+  min-height: auto !important;
+  border-radius: 0;
+  margin: 0 !important;
+  box-shadow: none;
+  backdrop-filter: none;
+  box-sizing: border-box !important;
+  overflow: visible !important; /* Remove scroll restrictions */
+}
+
+.dashboard-content {
+  width: 100%;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important; /* Reduced from 24px */
+  box-sizing: border-box !important;
+}
+
+/* Proper grid spacing - no overlap */
+.dashboard-container .row {
+  margin-left: -8px !important; /* Reduced from -12px */
+  margin-right: -8px !important;
+  margin-bottom: 12px !important; /* Reduced from 20px */
+  flex: 0 0 auto !important;
+  box-sizing: border-box !important;
+}
+
+.dashboard-container .row:last-child {
+  margin-bottom: 0 !important;
+}
+
+.dashboard-container .row > [class*="col-"] {
+  padding-left: 8px !important; /* Reduced from 12px */
+  padding-right: 8px !important;
+  margin-bottom: 12px !important; /* Reduced from 16px */
+  box-sizing: border-box !important;
+}
+
+/* Properly sized card styles */
+.dashboard-container .card {
+  background: var(--card-background) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: var(--border-radius) !important;
+  backdrop-filter: blur(8px) !important;
+  box-shadow: var(--shadow-sm) !important;
+  color: var(--text-primary) !important;
+  margin-bottom: 0 !important;
+  height: 100% !important;
+  min-height: 120px !important; /* Reduced from 140px */
+  padding: 16px !important; /* Reduced from 20px */
+  box-sizing: border-box !important;
+}
+
+.dashboard-container .card:hover {
+  box-shadow: var(--shadow-md) !important;
+  transform: translateY(-2px) !important;
+  border-color: rgba(37, 99, 235, 0.3) !important;
+}
+
+/* Light Theme Dashboard Styles */
+html.light-theme .dashboard-container .card,
+body.light-theme .dashboard-container .card,
+.light-theme .dashboard-container .card {
+  background: var(--card-background) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: var(--shadow-sm) !important;
+  color: var(--text-primary) !important;
+  backdrop-filter: none !important;
+}
+
+html.light-theme .dashboard-container .card:hover,
+body.light-theme .dashboard-container .card:hover,
+.light-theme .dashboard-container .card:hover {
+  box-shadow: var(--shadow-md) !important;
+  transform: translateY(-2px) !important;
+  border-color: var(--primary-blue) !important;
+}
+
+html.light-theme .dashboard-container .card-header,
+body.light-theme .dashboard-container .card-header,
+.light-theme .dashboard-container .card-header {
+  background: var(--tertiary-background) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+html.light-theme .dashboard-container .card-body,
+body.light-theme .dashboard-container .card-body,
+.light-theme .dashboard-container .card-body {
+  background: var(--card-background) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Properly sized card headers and bodies */
+.dashboard-container .card-header {
+  background: rgba(15, 23, 42, 0.3) !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1) !important;
+  border-radius: 8px 8px 0 0 !important;
+  padding: 0 !important; /* Remove padding since it's already on the card */
+  color: var(--text-primary) !important;
+  flex-shrink: 0 !important;
+  margin: -16px -16px 12px -16px !important; /* Updated for reduced card padding */
+  padding: 12px 16px !important; /* Reduced internal padding */
+  box-sizing: border-box !important;
+}
+
+.dashboard-container .card-body {
+  padding: 0 !important; /* Remove padding since it's already on the card */
+  color: var(--text-primary) !important;
+  background: transparent !important;
+  flex: 1 !important;
+  box-sizing: border-box !important;
+}
+
+/* Proper typography - Reduced sizes */
+.dashboard-container h5 {
+  font-size: 1.1rem !important; /* Reduced from 1.25rem */
+  font-weight: 600 !important;
+  margin-bottom: 0.4rem !important; /* Reduced margin */
+  color: var(--text-primary) !important;
+}
+
+.dashboard-container h6 {
+  font-size: 0.9rem !important; /* Reduced from 1rem */
+  font-weight: 500 !important;
+  margin-bottom: 0.4rem !important; /* Reduced margin */
+  color: var(--text-primary) !important;
+}
+
+/* Proper spacing - Reduced */
+.dashboard-container .mb-4 {
+  margin-bottom: 1.2rem !important; /* Reduced from 1.5rem */
+}
+
+.dashboard-container .mb-3 {
+  margin-bottom: 0.8rem !important; /* Reduced from 1rem */
+}
+
+.dashboard-container .mb-2 {
+  margin-bottom: 0.4rem !important; /* Reduced from 0.5rem */
+}
+
+/* Action button styles - prevent glitches */
+.action-button {
+  transition: all 0.2s ease-in-out !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background: rgba(30, 41, 59, 0.8) !important;
+  color: var(--text-primary) !important;
+  position: relative !important;
+  overflow: hidden !important;
+  text-decoration: none !important;
+}
+
+.action-button:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.15) !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+  color: #60a5fa !important;
+  transform: none !important;
+}
+
+.action-button:active:not(:disabled) {
+  transform: translateY(0) !important;
+  background: rgba(59, 130, 246, 0.25) !important;
+}
+
+.action-button:disabled {
+  background: rgba(30, 41, 59, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.05) !important;
+  color: rgba(241, 245, 249, 0.5) !important;
+  cursor: not-allowed !important;
+}
+
+.action-button:focus {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+  outline: none !important;
+}
+
+/* Spinner animation for loading buttons */
+.action-button .spinner-border-sm {
+  width: 0.875rem !important;
+  height: 0.875rem !important;
+  border-width: 0.125rem !important;
+}
+
+/* Status cards - properly sized */
+.status-card {
+  background: rgba(30, 41, 59, 0.95) !important;
+  border: 1px solid rgba(148, 163, 184, 0.1) !important;
+  border-radius: 8px !important;
+  backdrop-filter: blur(8px) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+  color: var(--text-primary) !important;
+  margin-bottom: 0 !important;
+  height: 100% !important;
+  min-height: 140px !important;
+  transition: all 0.2s ease !important;
+}
+
+.status-card:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+.status-card .card-body {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  padding: 1rem !important;
+}
+
+.status-card .status-icon {
+  font-size: 1.75rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.status-card .status-value {
+  font-size: 1.75rem !important;
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+  margin-bottom: 0.25rem !important;
+}
+
+.status-card .status-label {
+  font-size: 0.875rem !important;
+  color: #94a3b8 !important;
+  font-weight: 500 !important;
+}
+
+/* Action buttons - properly sized */
+.action-button {
+  background: transparent !important;
+  border: 1px solid rgba(148, 163, 184, 0.2) !important;
+  border-radius: 6px !important;
+  color: var(--text-primary) !important;
+  padding: 0.5rem 1rem !important;
+  font-size: 0.875rem !important;
+  font-weight: 400 !important;
+  transition: all 0.2s ease !important;
+  backdrop-filter: blur(8px) !important;
+  margin: 0.25rem !important;
+  min-height: 38px !important;
+}
+
+.action-button:hover {
+  opacity: 0.8 !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+  background: rgba(59, 130, 246, 0.1) !important;
+}
+
+.action-button:disabled {
+  opacity: 0.6 !important;
+}
+
+/* Alert list - proper height and scrolling */
+.alert-list {
+  max-height: 250px !important;
+  overflow-y: auto !important;
+  padding-right: 0.5rem !important;
+}
+
+.alert-item {
+  background: rgba(15, 23, 42, 0.95) !important;
+  border: 1px solid rgba(148, 163, 184, 0.1) !important;
+  border-radius: 6px !important;
+  padding: 0.75rem !important;
+  margin-bottom: 0.5rem !important;
+  transition: all 0.2s ease !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+.alert-item:hover {
+  transform: translateX(2px) !important;
+  border-color: rgba(59, 130, 246, 0.2) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+.alert-item:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Responsive design - maintain proper sizing */
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 1rem !important;
+  }
+  
+  .dashboard-container .row {
+    margin-bottom: 1rem !important;
+    margin-left: -0.375rem !important;
+    margin-right: -0.375rem !important;
+  }
+  
+  .dashboard-container .row > [class*="col-"] {
+    padding-left: 0.375rem !important;
+    padding-right: 0.375rem !important;
+  }
+  
+  .dashboard-container .card {
+    min-height: 120px !important;
+  }
+  
+  .dashboard-container .card-header {
+    padding: 0.75rem !important;
+  }
+  
+  .dashboard-container .card-body {
+    padding: 0.75rem !important;
+  }
+  
+  .status-card {
+    min-height: 120px !important;
+  }
+  
+  .status-card .card-body {
+    padding: 0.75rem !important;
+  }
+  
+  .status-card .status-icon {
+    font-size: 1.5rem !important;
+  }
+  
+  .status-card .status-value {
+    font-size: 1.5rem !important;
+  }
+  
+  .status-card .status-label {
+    font-size: 0.8rem !important;
+  }
+  
+  .action-button {
+    padding: 0.375rem 0.75rem !important;
+    font-size: 0.8rem !important;
+    min-height: 34px !important;
+  }
+}
+
+/* Simple animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.dashboard-container .card {
+  animation: fadeIn 0.3s ease !important;
+}
+
+/* Enhanced Scanner Control Styles */
+.scan-control-btn {
+  border-radius: 6px !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease-in-out !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+.scan-control-btn:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+}
+
+.scan-control-btn:active {
+  transform: translateY(0) !important;
+}
+
+.scan-control-btn.btn-primary {
+  background: linear-gradient(135deg, var(--primary-blue) 0%, #1e40af 100%) !important;
+  border-color: #2563eb !important;
+}
+
+.scan-control-btn.btn-success {
+  background: linear-gradient(135deg, #10b981 0%, #047857 100%) !important;
+  border-color: #059669 !important;
+}
+
+.scan-control-btn.btn-warning {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+  border-color: #f59e0b !important;
+  color: #fff !important;
+}
+
+.scan-control-btn.btn-info {
+  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%) !important;
+  border-color: #0891b2 !important;
+}
+
+.scan-control-btn.btn-secondary {
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%) !important;
+  border-color: #6b7280 !important;
+}
+
+.scan-status-info {
+  background: rgba(15, 23, 42, 0.6) !important;
+  border: 1px solid rgba(148, 163, 184, 0.1) !important;
+  border-radius: 6px !important;
+  padding: 0.75rem !important;
+  margin-top: 0.5rem !important;
+}
+
+.scan-status-info .badge {
+  font-size: 0.7rem !important;
+  padding: 0.25rem 0.5rem !important;
+}
+
+/* Quick Actions responsive adjustments */
+@media (max-width: 576px) {
+  .scan-control-btn {
+    font-size: 0.75rem !important;
+    padding: 0.25rem 0.5rem !important;
+    min-width: auto !important;
+  }
+  
+  .scan-status-info {
+    padding: 0.5rem !important;
+    font-size: 0.8rem !important;
+  }
+}
+
+/* Pulse animation for active scanning */
+@keyframes pulse-scan {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.scan-control-btn.btn-success .fa-sync.fa-spin {
+  animation: pulse-scan 2s ease-in-out infinite !important;
+}
+
+/* Enhanced Light Theme Support */
+.light-theme .dashboard-container .card {
+  background: white !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+}
+
+.light-theme .dashboard-container .card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+.light-theme .dashboard-container .card-header {
+  background: #f9fafb !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  color: #374151 !important;
+}
+
+.light-theme .alert-item {
+  background: white !important;
+  border: 1px solid #e5e7eb !important;
+  color: #374151 !important;
+}
+
+.light-theme .alert-item:hover {
+  background: #f9fafb !important;
+  border-color: #d1d5db !important;
+}
+
+.light-theme .scan-status-info {
+  background: #f9fafb !important;
+  border: 1px solid #e5e7eb !important;
+  color: #374151 !important;
+}
+
+/* Light Theme Form Elements */
+.light-theme .form-control,
+.light-theme .form-select {
+  background: white !important;
+  border: 1px solid #d1d5db !important;
+  color: #374151 !important;
+}
+
+.light-theme .form-control:focus,
+.light-theme .form-select:focus {
+  border-color: var(--primary-blue) !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1) !important;
+}
+
+.light-theme .btn {
+  color: white !important;
+}
+
+.light-theme .btn-primary {
+  background: var(--primary-blue) !important;
+}
+
+.light-theme .btn-secondary {
+  background: #6b7280 !important;
+  color: white !important;
+}
+
+.light-theme .btn:hover {
+  transform: translateY(-1px) !important;
+}

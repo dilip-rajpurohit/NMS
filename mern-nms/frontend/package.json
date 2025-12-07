@@ -1,11 +1,15 @@
 {
   "name": "nms-frontend",
-  "version": "1.0.0",
-  "description": "Network Management System Frontend",
+  "version": "2.0.0",
+  "description": "Network Management System Frontend - Modern React Interface",
   "homepage": ".",
+  "author": "Enterprise NMS Team",
+  "license": "MIT",
+  "updated": "2025-12-07",
   "dependencies": {
     "@fortawesome/fontawesome-free": "^6.4.2",
     "axios": "^1.5.0",
+    "feather-icons": "^4.29.0",
     "bootstrap": "^5.3.2",
     "react": "^18.2.0",
     "react-bootstrap": "^2.8.0",
@@ -46,4 +50,4 @@
   "devDependencies": {
     "react-scripts": "5.0.1"
   }
-}
+  }

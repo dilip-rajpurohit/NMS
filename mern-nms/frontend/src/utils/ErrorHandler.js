@@ -3,6 +3,16 @@ import { toast } from 'react-toastify';
 // Global error handler for API calls and other async operations
 class ErrorHandler {
   static handleApiError(error, defaultMessage = 'An error occurred') {
+    // Don't show errors for auth-related endpoints when user isn't logged in
+    const isAuthEndpoint = error?.config?.url?.includes('/auth/verify') || 
+                           error?.config?.url?.includes('/auth/profile');
+    const isUnauthorized = error?.response?.status === 401;
+    
+    if (isAuthEndpoint && isUnauthorized) {
+      // Silently handle auth verification failures
+      return { message: 'Authentication required', variant: 'warning', status: 401 };
+    }
+
     let message = defaultMessage;
     let variant = 'error';
 
@@ -18,10 +28,7 @@ class ErrorHandler {
         case 401:
           message = 'Authentication required';
           variant = 'warning';
-          // Redirect to login if needed
-          if (window.location.pathname !== '/login') {
-            window.location.href = '/login';
-          }
+          // Don't redirect - let the app handle logout through AuthContext
           break;
         case 403:
           message = 'Access denied';
@@ -50,15 +57,17 @@ class ErrorHandler {
       message = error.message || defaultMessage;
     }
 
-    // Show toast notification
-    toast[variant](message, {
-      position: "top-right",
-      autoClose: 5000,
-      hideProgressBar: false,
-      closeOnClick: true,
-      pauseOnHover: true,
-      draggable: true,
-    });
+    // Show toast notification for user-facing errors
+    if (!isAuthEndpoint || !isUnauthorized) {
+      toast[variant](message, {
+        position: "top-right",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    }
 
     return { message, variant, status: error.response?.status };
   }

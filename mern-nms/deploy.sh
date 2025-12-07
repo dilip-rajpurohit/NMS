@@ -22,6 +22,7 @@ NC='\033[0m' # No Color
 # Non-interactive mode flag
 NON_INTERACTIVE=false
 PRESERVE_DATA=false
+CONFIG_FILE=""
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -34,6 +35,10 @@ while [[ $# -gt 0 ]]; do
             PRESERVE_DATA=true
             shift
             ;;
+        --config|-c)
+            CONFIG_FILE="$2"
+            shift 2
+            ;;
         --help|-h)
             # Help will be handled later in main function
             break
@@ -45,6 +50,12 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# Load configuration file if specified
+if [[ -n "$CONFIG_FILE" && -f "$CONFIG_FILE" ]]; then
+    print_info "Loading configuration from: $CONFIG_FILE"
+    source "$CONFIG_FILE"
+fi
 
 # Initialize print functions after parsing
 if [[ "$NON_INTERACTIVE" == "true" ]]; then
@@ -87,13 +98,20 @@ show_usage() {
     echo "Options:"
     echo "  -n, --non-interactive    Run in non-interactive mode with default values"
     echo "  -p, --preserve-data      Preserve existing MongoDB data (may cause auth issues)"
+    echo "  -c, --config FILE        Load configuration from specified file"
     echo "  -h, --help              Show this help message"
     echo
     echo "Examples:"
-    echo "  $0                      Run in interactive mode (prompts for passwords and email)"
-    echo "  $0 --non-interactive    Run with auto-generated passwords and default email"
-    echo "  $0 --preserve-data      Keep existing database data (use with caution)"
-    echo "  $0 -n -p               Non-interactive mode with data preservation"
+    echo "  $0                                  Run in interactive mode (prompts for passwords and email)"
+    echo "  $0 --non-interactive                Run with default values (NOT SECURE for production)"
+    echo "  $0 --config deploy-config.sh       Run with configuration from file"
+    echo "  $0 -c deploy-config.sh -n          Run non-interactively with config file"
+    echo "  $0 --preserve-data                  Keep existing database data (use with caution)"
+    echo "  $0 -n -p                           Non-interactive mode with data preservation"
+    echo
+    echo "Configuration File:"
+    echo "  Copy deploy-config.sh.template to deploy-config.sh and customize values"
+    echo "  This is the recommended way for automated/production deployments"
     echo
     echo "Note: By default, MongoDB volumes are cleaned to prevent authentication conflicts."
     echo "      Use --preserve-data only if you want to keep existing database content."
@@ -181,6 +199,10 @@ create_env_file() {
     
     if [[ -f ".env" ]]; then
         print_warning ".env file already exists. Creating backup..."
+        # Create backup directory if it doesn't exist
+        if [[ ! -d "save_env_backups" ]]; then
+            mkdir -p save_env_backups
+        fi
         cp .env save_env_backups/.env.backup.$(date +%Y%m%d_%H%M%S)
     fi
     
@@ -233,9 +255,9 @@ create_env_file() {
     
     # Ask for ports
     if [[ "$NON_INTERACTIVE" == "true" ]]; then
-        frontend_port=3000
-        backend_port=5000
-        print_info "Using default ports - Frontend: $frontend_port, Backend: $backend_port"
+        frontend_port=${FRONTEND_PORT:-3000}
+        backend_port=${BACKEND_PORT:-5000}
+        print_info "Using ports - Frontend: $frontend_port, Backend: $backend_port"
     else
         echo -n "Enter frontend port (default: 3000): "
         read frontend_port
@@ -251,13 +273,17 @@ create_env_file() {
     
     # Ask for passwords and email instead of generating them
     if [[ "$NON_INTERACTIVE" == "true" ]]; then
-        local mongo_password="mongo123"
-        local admin_password="admin123"
-        local admin_email="admin@example.com"
+        local mongo_password=${MONGO_ROOT_PASSWORD:-"mongo123"}
+        local admin_password=${ADMIN_PASSWORD:-"admin123"}
+        local admin_email=${ADMIN_EMAIL:-"g76697024@gmail.com"}
+        local smtp_user=${SMTP_USER:-"g76697024@gmail.com"}
+        local smtp_password=${SMTP_PASSWORD:-"qmkh nlkk fwqc zjsw"}
         print_warning "Using default credentials in non-interactive mode:"
         print_warning "  MongoDB Password: mongo123"
         print_warning "  Admin Password: admin123"
-        print_warning "  Admin Email: admin@example.com"
+        print_warning "  Admin Email: g76697024@gmail.com"
+        print_warning "  SMTP User: g76697024@gmail.com"
+        print_warning "  SMTP Password: qmkh nlkk fwqc zjsw"
         print_warning "  Please change these after deployment!"
     else
         echo
@@ -286,6 +312,29 @@ create_env_file() {
             echo -n "Email cannot be empty. Please enter admin email address: "
             read admin_email
         done
+        
+        echo
+        print_info "Email Service Configuration (for email verification):"
+        echo "Gmail is recommended. You'll need to:"
+        echo "1. Enable 2FA on your Gmail account"
+        echo "2. Generate an App Password for this application"
+        echo "3. Use your Gmail address and App Password below"
+        echo
+        echo -n "Enter SMTP email address (e.g., yourname@gmail.com): "
+        read smtp_user
+        while [[ -z "$smtp_user" ]]; do
+            echo -n "SMTP email cannot be empty. Please enter SMTP email address: "
+            read smtp_user
+        done
+        
+        echo -n "Enter SMTP password (Gmail App Password): "
+        read -s smtp_password
+        echo
+        while [[ -z "$smtp_password" ]]; do
+            echo -n "SMTP password cannot be empty. Please enter SMTP password: "
+            read -s smtp_password
+            echo
+        done
     fi
     
     # Create .env file
@@ -300,7 +349,9 @@ create_env_file() {
     sed -i "s/JWT_SECRET=your-secure-jwt-secret-here-change-this-for-production/JWT_SECRET=$jwt_secret/g" .env
     sed -i "s/MONGO_ROOT_PASSWORD=mongo123/MONGO_ROOT_PASSWORD=$mongo_password/g" .env
     sed -i "s/ADMIN_PASSWORD=admin123/ADMIN_PASSWORD=$admin_password/g" .env
-    sed -i "s/ADMIN_EMAIL=admin@example.com/ADMIN_EMAIL=$admin_email/g" .env
+    sed -i "s|ADMIN_EMAIL=admin@yourcompany.com|ADMIN_EMAIL=$admin_email|g" .env
+    sed -i "s|SMTP_USER=your-email@gmail.com|SMTP_USER=$smtp_user|g" .env
+    sed -i "s/SMTP_PASSWORD=your-app-password/SMTP_PASSWORD=$smtp_password/g" .env
     sed -i "s/ALLOW_ALL_ORIGINS=false/ALLOW_ALL_ORIGINS=${allow_all_origins:-false}/g" .env
     
     print_success "Environment file created successfully"
@@ -332,6 +383,11 @@ Admin Credentials:
 MongoDB Credentials:
 - Username: admin
 - Password: $mongo_password
+
+Email Service Configuration:
+- SMTP Host: smtp.gmail.com
+- SMTP User: $smtp_user
+- SMTP Password: $smtp_password
 
 Security:
 - JWT Secret: $jwt_secret
@@ -432,6 +488,14 @@ check_health() {
         print_success "Frontend is healthy"
     else
         print_warning "Frontend health check failed (this is normal if still starting up)"
+    fi
+    
+    # Fix database indexes to prevent duplicate key issues
+    print_info "Fixing database indexes..."
+    if ${WINPTY_PREFIX}docker exec nms-backend node /usr/src/app/scripts/fix-database-indexes.js >/dev/null 2>&1; then
+        print_success "Database indexes fixed successfully"
+    else
+        print_warning "Database index fix failed or not needed"
     fi
     
     echo

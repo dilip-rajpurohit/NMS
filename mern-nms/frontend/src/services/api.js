@@ -12,8 +12,8 @@ const getApiBaseUrl = () => {
   const protocol = window.location.protocol;
   const hostname = window.location.hostname;
   
-  // Always use the current hostname for API in production
-  const backendPort = process.env.REACT_APP_BACKEND_PORT;
+  // Use environment variable or fallback to default port
+  const backendPort = process.env.REACT_APP_BACKEND_PORT || '5000';
   return `${protocol}//${hostname}:${backendPort}/api`;
 };
 
@@ -25,7 +25,14 @@ if (process.env.NODE_ENV === 'development') {
     baseURL: API_BASE_URL,
     hostname: window.location.hostname,
     protocol: window.location.protocol,
-    env: process.env.NODE_ENV
+    env: process.env.NODE_ENV,
+    REACT_APP_API_URL: process.env.REACT_APP_API_URL,
+    REACT_APP_BACKEND_PORT: process.env.REACT_APP_BACKEND_PORT
+  });
+} else {
+  console.log('🔧 Production API Configuration:', {
+    baseURL: API_BASE_URL,
+    REACT_APP_API_URL: process.env.REACT_APP_API_URL
   });
 }
 
@@ -40,7 +47,8 @@ const api = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('nms_token');
+    // Support both legacy 'token' and new 'nms_token' keys to ensure compatibility
+    const token = localStorage.getItem('nms_token') || localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -57,6 +65,38 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    // Handle authentication errors by clearing tokens
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      // Only auto-logout for authentication/verification endpoints that indicate invalid session
+      const url = error.config?.url;
+      const isAuthVerification = url?.includes('/auth/verify') || url?.includes('/auth/login');
+      
+      if (isAuthVerification) {
+        console.warn('Authentication verification failed, clearing tokens');
+        // Clear tokens from localStorage
+        if (typeof window !== 'undefined' && window.localStorage) {
+          localStorage.removeItem('nms_token');
+          localStorage.removeItem('token');
+          localStorage.removeItem('nms_user');
+          sessionStorage.removeItem('nms_token');
+          sessionStorage.removeItem('token');
+        }
+        // Clear authorization header
+        delete api.defaults.headers.common['Authorization'];
+        
+        // If this is not already a login page, reload to trigger login
+        if (!window.location.pathname.includes('login') && !window.location.pathname.includes('auth')) {
+          console.log('Redirecting to login due to authentication verification failure');
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        }
+      } else {
+        // For other 401/403 errors, just log them without auto-logout
+        console.warn('Access denied for request:', url, 'Status:', error.response?.status);
+      }
+    }
+
     // Enhanced error logging for network issues
     if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK') {
       console.error('🚨 Network Connection Error:', {
@@ -100,7 +140,6 @@ export const authAPI = {
   login: (credentials) => api.post('/auth/login', credentials),
   register: (userData) => api.post('/auth/register', userData),
   verify: () => api.get('/auth/verify'),
-  getProfile: () => api.get('/auth/profile'),
 };
 
 export const devicesAPI = {
@@ -130,10 +169,61 @@ export const metricsAPI = {
 export const discoveryAPI = {
   getConfig: () => api.get('/discovery/config'),
   updateConfig: (config) => api.put('/discovery/config', config),
+  getNetworks: () => api.get('/discovery/networks'),
   startScan: (params) => api.post('/discovery/scan', params),
   stopScan: () => api.post('/discovery/stop'),
   getStatus: () => api.get('/discovery/status'),
   getDevices: (params) => api.get('/discovery/devices', { params }),
+};
+
+export const profileAPI = {
+  // Get complete user profile
+  getProfile: () => api.get('/profile'),
+  
+  // Personal Information
+  updatePersonalInfo: (data) => api.put('/profile/personal', data),
+  
+  // Email Management  
+  updateEmail: (data) => api.put('/profile/email', data),
+  
+  // Avatar and Cover
+  updateAvatar: (avatar) => api.put('/profile/avatar', { avatar }),
+  updateCover: (coverImage) => api.put('/profile/cover', { coverImage }),
+  
+  // Password Management
+  changePassword: (data) => api.put('/profile/password', data),
+  
+  // OTP-based Password Change
+  requestPasswordOTP: (data) => api.post('/profile/password/request-otp', data),
+  verifyPasswordOTP: (data) => api.post('/profile/password/verify-otp', data),
+  
+  // Preferences (Theme, Notifications, Interface)
+  updatePreferences: (preferences) => api.put('/profile/preferences', preferences),
+  
+  // Two-Factor Authentication
+  updateTwoFactor: (data) => api.put('/profile/two-factor', data),
+  
+  // Login Sessions Management
+  getLoginSessions: () => api.get('/profile/login-sessions'),
+  terminateSession: (sessionId) => api.delete(`/profile/login-sessions/${sessionId}`),
+  
+  // Profile Statistics
+  updateStats: (stats) => api.put('/profile/stats', stats),
+};
+
+// Email Verification API
+export const emailVerificationAPI = {
+  // Request email change with verification
+  requestEmailChange: (data) => api.post('/email-verification/request-change', data),
+  
+  // Verify email change token
+  verifyEmailChange: (data) => api.post('/email-verification/verify', data),
+  
+  // Get current verification status
+  getVerificationStatus: () => api.get('/email-verification/status'),
+  
+  // Cancel pending verification
+  cancelVerification: () => api.delete('/email-verification/cancel')
 };
 
 export default api;

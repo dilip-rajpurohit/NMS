@@ -1,0 +1,262 @@
+/* Modern Topology Styles */
+.topology-container {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.modern-card {
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  background: white;
+  overflow: hidden;
+}
+
+.modern-card .card-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 1.25rem;
+}
+
+.modern-card .card-header h5 {
+  font-weight: 600;
+  margin: 0;
+}
+
+.modern-card .card-header small {
+  opacity: 0.9;
+}
+
+.topology-workspace {
+  position: relative;
+  overflow: hidden;
+  background: #fafafa;
+}
+
+.topology-legend {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 10;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.legend-icon {
+  font-size: 16px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  border: 2px solid #e5e7eb;
+}
+
+.legend-icon.router {
+  background: #f3f4f6;
+  border-color: #4f46e5;
+}
+
+.legend-icon.switch {
+  background: #f0fdf4;
+  border-color: #059669;
+}
+
+.legend-icon.server {
+  background: #fef2f2;
+  border-color: #dc2626;
+}
+
+/* SVG Styles */
+.topology-link {
+  transition: all 0.2s ease;
+}
+
+.topology-link:hover {
+  stroke-width: 3 !important;
+  opacity: 0.8 !important;
+}
+
+.device-node {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.device-circle {
+  transition: all 0.2s ease;
+}
+
+.device-node:hover .device-circle {
+  filter: url(#drop-shadow) brightness(1.1);
+}
+
+.device-type-badge {
+  background: #f3f4f6;
+  color: #374151;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+/* Button Groups */
+.btn-group .btn {
+  border-radius: 6px !important;
+  margin-right: 4px;
+  font-weight: 500;
+  font-size: 13px;
+  padding: 6px 12px;
+  transition: all 0.2s ease;
+}
+
+.btn-group .btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Modal Styles */
+.modal-content {
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.modal-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 12px 12px 0 0;
+}
+
+.modal-title {
+  font-weight: 600;
+}
+
+.btn-close {
+  filter: brightness(0) invert(1);
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+.modal-body .row {
+  margin-bottom: 0.75rem;
+}
+
+.modal-body strong {
+  color: #374151;
+  font-weight: 600;
+}
+
+/* Alert Styles */
+.alert {
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.alert-info {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  color: #1e40af;
+}
+
+.alert-danger {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  color: #dc2626;
+}
+
+/* Badge Styles */
+.badge {
+  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+/* Code Styles */
+code {
+  background: #f3f4f6;
+  color: #374151;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: 'SF Mono', Monaco, Inconsolata, 'Roboto Mono', Consolas, 'Courier New', monospace;
+  font-size: 13px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .topology-container {
+    padding: 10px;
+  }
+  
+  .modern-card .card-header {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .modern-card .card-header .d-flex {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .topology-legend {
+    position: static;
+    margin: 10px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+/* Animation for loading states */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.topology-workspace.loading {
+  animation: pulse 1.5s infinite;
+}
+
+/* Custom scrollbar */
+.modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

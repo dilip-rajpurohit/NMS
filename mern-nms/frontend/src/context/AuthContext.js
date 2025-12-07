@@ -22,11 +22,26 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuthStatus = async () => {
     try {
-      const token = localStorage.getItem('nms_token');
+      // Check if we're in browser environment
+      if (typeof window === 'undefined' || !window.localStorage) {
+        return;
+      }
+
+      const token = localStorage.getItem('nms_token') || localStorage.getItem('token');
       if (token) {
         // Validate token format
-        if (!token.includes('.')) {
+        if (!token.includes('.') || token.split('.').length !== 3) {
           throw new Error('Invalid token format');
+        }
+        
+        // Check if token is expired before making API call
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          if (payload.exp * 1000 < Date.now()) {
+            throw new Error('Token expired');
+          }
+        } catch (tokenError) {
+          throw new Error('Invalid token structure');
         }
         
         api.setAuthToken(token);
@@ -40,9 +55,14 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Auth check failed:', error);
-      // Clear invalid tokens
-      localStorage.removeItem('nms_token');
-      localStorage.removeItem('nms_user');
+      // Clear all possible token storage locations only if in browser
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.removeItem('nms_token');
+        localStorage.removeItem('token');
+        localStorage.removeItem('nms_user');
+        sessionStorage.removeItem('nms_token');
+        sessionStorage.removeItem('token');
+      }
       api.setAuthToken(null);
       setUser(null);
     } finally {
@@ -79,14 +99,20 @@ export const AuthProvider = ({ children }) => {
         throw new Error('Invalid response from server');
       }
       
-      // Store authentication data
-      const storage = rememberMe ? localStorage : sessionStorage;
-      storage.setItem('nms_token', token);
-      storage.setItem('nms_user', JSON.stringify(user));
-      storage.setItem('nms_remember', rememberMe.toString());
+      // Store authentication data only if in browser
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const storage = rememberMe ? localStorage : sessionStorage;
+        storage.setItem('nms_token', token);
+        // Keep legacy key for components that read 'token'
+        storage.setItem('token', token);
+        storage.setItem('nms_user', JSON.stringify(user));
+        storage.setItem('nms_remember', rememberMe.toString());
+        
+        // Also set in localStorage for API interceptor
+        localStorage.setItem('nms_token', token);
+        localStorage.setItem('token', token);
+      }
       
-      // Also set in localStorage for API interceptor
-      localStorage.setItem('nms_token', token);
       api.setAuthToken(token);
       setUser(user);
       
@@ -128,7 +154,9 @@ export const AuthProvider = ({ children }) => {
       const response = await api.post('/auth/register', {
         username: username.trim(),
         email: email.trim().toLowerCase(),
-        password
+        password,
+        firstName: userData.firstName?.trim() || '',
+        lastName: userData.lastName?.trim() || ''
       });
       
       const { token, user } = response.data;
@@ -138,6 +166,8 @@ export const AuthProvider = ({ children }) => {
       }
       
       localStorage.setItem('nms_token', token);
+  // Legacy key
+  localStorage.setItem('token', token);
       localStorage.setItem('nms_user', JSON.stringify(user));
       api.setAuthToken(token);
       setUser(user);
@@ -155,10 +185,19 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('nms_token');
+    localStorage.removeItem('token');
     localStorage.removeItem('nms_user');
     api.setAuthToken(null);
     setUser(null);
     setError('');
+  };
+
+  const refreshUser = async () => {
+    try {
+      await checkAuthStatus();
+    } catch (error) {
+      console.error('Failed to refresh user data:', error);
+    }
   };
 
   const value = {
@@ -168,6 +207,7 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    refreshUser,
     setError
   };
 
@@ -177,3 +217,5 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
+
+export default AuthContext;

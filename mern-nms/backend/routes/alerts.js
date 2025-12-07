@@ -1,3 +1,4 @@
+const logger = require('../utils/logger');
 const express = require('express');
 const Device = require('../models/Device');
 const { authenticateToken } = require('../middleware/auth');
@@ -18,7 +19,7 @@ router.get('/', authenticateToken, async (req, res) => {
 
     // Build aggregation pipeline
     const pipeline = [
-      { $match: { isActive: true } },
+      { $match: {} },
       { $unwind: '$alerts' },
       {
         $match: {
@@ -54,7 +55,7 @@ router.get('/', authenticateToken, async (req, res) => {
     
     // Get total count
     const countPipeline = [
-      { $match: { isActive: true } },
+      { $match: {} },
       { $unwind: '$alerts' },
       {
         $match: {
@@ -73,7 +74,7 @@ router.get('/', authenticateToken, async (req, res) => {
 
     // Get alert statistics
     const statsResult = await Device.aggregate([
-      { $match: { isActive: true } },
+      { $match: {} },
       { $unwind: '$alerts' },
       {
         $group: {
@@ -117,7 +118,7 @@ router.get('/', authenticateToken, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get alerts error:', error);
+    logger.error('Get alerts error:', error);
     res.status(500).json({
       error: 'Failed to fetch alerts',
       message: error.message
@@ -128,17 +129,35 @@ router.get('/', authenticateToken, async (req, res) => {
 // Acknowledge multiple alerts
 router.post('/acknowledge', authenticateToken, async (req, res) => {
   try {
-    const { alertIds, deviceIds, acknowledgedBy } = req.body;
+    const { alertIds, deviceIds, acknowledgedBy, bulkAcknowledgeAll } = req.body;
     
-    if (!alertIds && !deviceIds) {
+    if (!alertIds && !deviceIds && !bulkAcknowledgeAll) {
       return res.status(400).json({ 
-        error: 'Either alertIds or deviceIds must be provided' 
+        error: 'Either alertIds, deviceIds, or bulkAcknowledgeAll must be provided' 
       });
     }
 
     let updateResult;
     
-    if (alertIds && alertIds.length > 0) {
+    // Handle bulk acknowledge ALL alerts
+    if (bulkAcknowledgeAll) {
+      logger.info('🧹 Bulk acknowledging ALL unacknowledged alerts...');
+      updateResult = await Device.updateMany(
+        { 'alerts.acknowledged': false },
+        {
+          $set: {
+            'alerts.$[alert].acknowledged': true,
+            'alerts.$[alert].acknowledgedBy': acknowledgedBy || req.user.username,
+            'alerts.$[alert].acknowledgedAt': new Date()
+          }
+        },
+        {
+          arrayFilters: [{ 'alert.acknowledged': false }]
+        }
+      );
+      
+      logger.info(`✅ Bulk acknowledged ALL alerts - Modified ${updateResult.modifiedCount} devices`);
+    } else if (alertIds && alertIds.length > 0) {
       // Acknowledge specific alerts
       updateResult = await Device.updateMany(
         { 'alerts._id': { $in: alertIds } },
@@ -182,7 +201,7 @@ router.post('/acknowledge', authenticateToken, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Acknowledge alerts error:', error);
+    logger.error('Acknowledge alerts error:', error);
     res.status(500).json({
       error: 'Failed to acknowledge alerts',
       message: error.message
@@ -242,7 +261,7 @@ router.post('/custom', authenticateToken, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Create custom alert error:', error);
+    logger.error('Create custom alert error:', error);
     res.status(500).json({
       error: 'Failed to create custom alert',
       message: error.message
@@ -299,7 +318,7 @@ router.post('/auto-resolve', authenticateToken, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Auto-resolve alerts error:', error);
+    logger.error('Auto-resolve alerts error:', error);
     res.status(500).json({
       error: 'Failed to auto-resolve alerts',
       message: error.message
@@ -324,7 +343,7 @@ router.get('/analytics', authenticateToken, async (req, res) => {
 
     // Alerts by severity over time
     const alertTrends = await Device.aggregate([
-      { $match: { isActive: true } },
+      { $match: {} },
       { $unwind: '$alerts' },
       { $match: { 'alerts.timestamp': { $gte: startTime } } },
       {
@@ -346,7 +365,7 @@ router.get('/analytics', authenticateToken, async (req, res) => {
 
     // Top devices by alert count
     const topDevices = await Device.aggregate([
-      { $match: { isActive: true } },
+      { $match: {} },
       {
         $project: {
           name: 1,
@@ -369,7 +388,7 @@ router.get('/analytics', authenticateToken, async (req, res) => {
 
     // Alert types distribution
     const alertTypes = await Device.aggregate([
-      { $match: { isActive: true } },
+      { $match: {} },
       { $unwind: '$alerts' },
       { $match: { 'alerts.timestamp': { $gte: startTime } } },
       {
@@ -410,7 +429,7 @@ router.get('/analytics', authenticateToken, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Alert analytics error:', error);
+    logger.error('Alert analytics error:', error);
     res.status(500).json({
       error: 'Failed to fetch alert analytics',
       message: error.message
@@ -426,7 +445,7 @@ router.get('/export', authenticateToken, async (req, res) => {
     const startDate = new Date(Date.now() - (parseInt(days) * 24 * 60 * 60 * 1000));
     
     const pipeline = [
-      { $match: { isActive: true } },
+      { $match: {} },
       { $unwind: '$alerts' },
       {
         $match: {
@@ -486,9 +505,314 @@ router.get('/export', authenticateToken, async (req, res) => {
     }
 
   } catch (error) {
-    console.error('Export alerts error:', error);
+    logger.error('Export alerts error:', error);
     res.status(500).json({
       error: 'Failed to export alerts',
+      message: error.message
+    });
+  }
+});
+
+// Acknowledge a specific alert
+router.put('/:alertId/acknowledge', authenticateToken, async (req, res) => {
+  try {
+    const { alertId } = req.params;
+    const acknowledgedBy = req.user.username || 'unknown';
+
+    // Find the device containing this alert and update it
+    const updateResult = await Device.updateOne(
+      { 'alerts._id': alertId },
+      {
+        $set: {
+          'alerts.$.acknowledged': true,
+          'alerts.$.acknowledgedBy': acknowledgedBy,
+          'alerts.$.acknowledgedAt': new Date()
+        }
+      }
+    );
+
+    if (updateResult.matchedCount === 0) {
+      return res.status(404).json({ error: 'Alert not found' });
+    }
+
+    // Emit real-time update
+    const io = req.app.get('socketio');
+    if (io) {
+      io.emit('alert-acknowledged', {
+        alertId,
+        acknowledgedBy,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    res.json({
+      message: 'Alert acknowledged successfully',
+      alertId,
+      acknowledgedBy
+    });
+
+  } catch (error) {
+    logger.error('Acknowledge single alert error:', error);
+    res.status(500).json({
+      error: 'Failed to acknowledge alert',
+      message: error.message
+    });
+  }
+});
+
+// Simple bulk acknowledge all unacknowledged alerts
+router.post('/bulk-acknowledge', authenticateToken, async (req, res) => {
+  try {
+    const acknowledgedBy = req.user.username || 'unknown';
+    
+    // Simply acknowledge ALL unacknowledged alerts
+    const result = await Device.updateMany(
+      { 'alerts.acknowledged': false },
+      {
+        $set: {
+          'alerts.$[alert].acknowledged': true,
+          'alerts.$[alert].acknowledgedBy': acknowledgedBy,
+          'alerts.$[alert].acknowledgedAt': new Date()
+        }
+      },
+      {
+        arrayFilters: [{ 'alert.acknowledged': false }]
+      }
+    );
+
+    logger.info(`Bulk acknowledged ALL alerts - Modified ${result.modifiedCount} devices`);
+
+    res.json({
+      success: true,
+      message: 'All alerts acknowledged successfully',
+      modifiedDevices: result.modifiedCount,
+      acknowledgedBy
+    });
+
+  } catch (error) {
+    logger.error('Bulk acknowledge alerts error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to bulk acknowledge alerts',
+      message: error.message
+    });
+  }
+});
+
+// Resolve a specific alert
+router.put('/:alertId/resolve', authenticateToken, async (req, res) => {
+  try {
+    const { alertId } = req.params;
+    const resolvedBy = req.user.username || 'unknown';
+
+    // Find the device containing this alert and update it
+    const updateResult = await Device.updateOne(
+      { 'alerts._id': alertId },
+      {
+        $set: {
+          'alerts.$.resolvedAt': new Date(),
+          'alerts.$.resolvedBy': resolvedBy,
+          'alerts.$.acknowledged': true,
+          'alerts.$.acknowledgedBy': resolvedBy,
+          'alerts.$.acknowledgedAt': new Date()
+        }
+      }
+    );
+
+    if (updateResult.matchedCount === 0) {
+      return res.status(404).json({ error: 'Alert not found' });
+    }
+
+    // Emit real-time update
+    const io = req.app.get('socketio');
+    if (io) {
+      io.emit('alert-resolved', {
+        alertId,
+        resolvedBy,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    res.json({
+      message: 'Alert resolved successfully',
+      alertId,
+      resolvedBy
+    });
+
+  } catch (error) {
+    logger.error('Resolve alert error:', error);
+    res.status(500).json({
+      error: 'Failed to resolve alert',
+      message: error.message
+    });
+  }
+});
+
+// Delete a specific alert
+router.delete('/:alertId', authenticateToken, async (req, res) => {
+  try {
+    const { alertId } = req.params;
+
+    // Find the device containing this alert and remove it
+    const updateResult = await Device.updateOne(
+      { 'alerts._id': alertId },
+      {
+        $pull: { alerts: { _id: alertId } }
+      }
+    );
+
+    if (updateResult.matchedCount === 0) {
+      return res.status(404).json({ error: 'Alert not found' });
+    }
+
+    // Emit real-time update
+    const io = req.app.get('socketio');
+    if (io) {
+      io.emit('alert-deleted', {
+        alertId,
+        deletedBy: req.user.username || 'unknown',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    res.json({
+      message: 'Alert deleted successfully',
+      alertId
+    });
+
+  } catch (error) {
+    logger.error('Delete alert error:', error);
+    res.status(500).json({
+      error: 'Failed to delete alert',
+      message: error.message
+    });
+  }
+});
+
+// Lightweight endpoint for real-time alert statistics
+router.get('/live', authenticateToken, async (req, res) => {
+  try {
+    // Get alert counts by severity
+    const alertStats = await Device.aggregate([
+      { $match: { alerts: { $exists: true, $ne: [] } } },
+      { $unwind: '$alerts' },
+      { $group: { 
+          _id: '$alerts.severity', 
+          count: { $sum: 1 },
+          unacknowledged: { $sum: { $cond: [{ $eq: ['$alerts.acknowledged', false] }, 1, 0] } }
+      }},
+      { $sort: { _id: 1 } }
+    ]);
+
+    // Format alert statistics
+    const stats = {
+      total: 0,
+      critical: 0,
+      warning: 0,
+      info: 0,
+      acknowledged: 0,
+      unacknowledged: 0
+    };
+
+    alertStats.forEach(stat => {
+      stats.total += stat.count;
+      stats.unacknowledged += stat.unacknowledged;
+      stats.acknowledged += (stat.count - stat.unacknowledged);
+      
+      switch(stat._id) {
+        case 'critical': stats.critical = stat.count; break;
+        case 'warning': stats.warning = stat.count; break;
+        case 'info': stats.info = stat.count; break;
+      }
+    });
+
+    // Get recent alerts (last 24 hours)
+    const recentAlerts = await Device.aggregate([
+      { $match: { alerts: { $exists: true, $ne: [] } } },
+      { $unwind: '$alerts' },
+      { $match: { 'alerts.timestamp': { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } },
+      { $sort: { 'alerts.timestamp': -1 } },
+      { $limit: 10 },
+      { $project: {
+          _id: '$alerts._id',
+          type: '$alerts.type',
+          message: '$alerts.message',
+          severity: '$alerts.severity',
+          timestamp: '$alerts.timestamp',
+          deviceName: '$name',
+          acknowledged: '$alerts.acknowledged'
+      }}
+    ]);
+
+    res.json({
+      stats,
+      recentAlerts,
+      timestamp: new Date()
+    });
+  } catch (error) {
+    logger.error('Live alerts error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch live alert data',
+      message: error.message
+    });
+  }
+});
+
+// Manual alert check trigger (for testing)
+router.post('/trigger-check', authenticateToken, async (req, res) => {
+  try {
+    const alertService = require('../services/alertService');
+    const result = await alertService.triggerChecks();
+    
+    res.json({
+      message: 'Alert checks triggered successfully',
+      ...result,
+      timestamp: new Date()
+    });
+  } catch (error) {
+    logger.error('Manual alert trigger error:', error);
+    res.status(500).json({
+      error: 'Failed to trigger alert checks',
+      message: error.message
+    });
+  }
+});
+
+// Bulk acknowledge all unacknowledged alerts - FINAL ROUTE
+router.post('/clear-all-alerts', authenticateToken, async (req, res) => {
+  try {
+    const acknowledgedBy = req.user.username || 'unknown';
+    
+    // Simply acknowledge ALL unacknowledged alerts
+    const result = await Device.updateMany(
+      { 'alerts.acknowledged': false },
+      {
+        $set: {
+          'alerts.$[alert].acknowledged': true,
+          'alerts.$[alert].acknowledgedBy': acknowledgedBy,
+          'alerts.$[alert].acknowledgedAt': new Date()
+        }
+      },
+      {
+        arrayFilters: [{ 'alert.acknowledged': false }]
+      }
+    );
+
+    logger.info(`✅ CLEARED ALL ALERTS - Modified ${result.modifiedCount} devices`);
+
+    res.json({
+      success: true,
+      message: `Successfully cleared all alerts from ${result.modifiedCount} devices`,
+      modifiedDevices: result.modifiedCount,
+      acknowledgedBy,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    logger.error('❌ Clear all alerts error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to clear all alerts',
       message: error.message
     });
   }

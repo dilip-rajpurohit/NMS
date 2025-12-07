@@ -1,0 +1,78 @@
+#!/bin/bash
+
+# NMS Non-Interactive Deployment Configuration
+# This file contains default values for non-interactive deployment
+# Copy this file and modify values as needed for your environment
+
+# ===========================================
+# NETWORK CONFIGURATION
+# ===========================================
+
+# Server IP address (will be auto-detected if not set)
+SERVER_IP=""
+
+# Port Configuration
+FRONTEND_PORT=3000
+BACKEND_PORT=5000
+MONGO_PORT=27017
+
+# CORS Configuration (true for development, false for production)
+ALLOW_ALL_ORIGINS=true
+
+# ===========================================
+# SECURITY CONFIGURATION
+# ===========================================
+
+# MongoDB credentials
+MONGO_ROOT_PASSWORD="mongo123"
+
+# Admin user credentials
+ADMIN_PASSWORD="admin123"
+ADMIN_EMAIL="admin@example.com"
+
+# ===========================================
+# EMAIL SERVICE CONFIGURATION
+# ===========================================
+
+# Gmail SMTP Configuration
+# You need to:
+# 1. Enable 2FA on your Gmail account
+# 2. Generate an App Password for this application
+# 3. Replace the values below with your Gmail credentials
+
+SMTP_USER="your-email@gmail.com"
+SMTP_PASSWORD="your-app-password"
+
+# ===========================================
+# DEPLOYMENT OPTIONS
+# ===========================================
+
+# Set to true to preserve existing data during deployment
+PRESERVE_DATA=false
+
+# Node.js environment
+NODE_ENV=production
+
+# ===========================================
+# USAGE INSTRUCTIONS
+# ===========================================
+
+# To use this configuration file:
+# 1. Copy this file: cp deploy-config.sh.template deploy-config.sh
+# 2. Edit deploy-config.sh with your actual values
+# 3. Run deployment: ./deploy.sh --config deploy-config.sh --non-interactive
+#
+# OR
+#
+# Source this file and run deployment:
+# source deploy-config.sh && ./deploy.sh --non-interactive
+
+# ===========================================
+# SECURITY NOTES
+# ===========================================
+
+# - Change all default passwords
+# - Use strong passwords (8+ characters, mixed case, numbers, symbols)
+# - Keep this file secure and don't commit it to version control
+# - For Gmail: Use App Passwords, not your main Gmail password
+# - Consider using environment-specific secrets management in production

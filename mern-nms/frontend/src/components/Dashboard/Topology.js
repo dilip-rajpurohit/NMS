@@ -1,624 +1,612 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Container, Row, Col, Card, Button, Badge, Alert, Modal, Table, Form, ButtonGroup } from 'react-bootstrap';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Container, Row, Col, Card, Button, Badge, Alert, Modal, Form, ButtonGroup, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import { useSocket } from '../../context/SocketContext';
 import api from '../../services/api';
+import '../../styles/topology.css';
 
 const Topology = () => {
-  const { socket, connected } = useSocket();
+  const { socket, connected, realTimeData } = useSocket();
   const svgRef = useRef(null);
+  const containerRef = useRef(null);
   const [devices, setDevices] = useState([]);
   const [links, setLinks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [showDeviceModal, setShowDeviceModal] = useState(false);
-  const [showLinkModal, setShowLinkModal] = useState(false);
-  const [selectedLink, setSelectedLink] = useState(null);
-  const [viewMode, setViewMode] = useState('hierarchical');
-  const [filterType, setFilterType] = useState('all');
-  const [autoRefresh, setAutoRefresh] = useState(true);
-  
-  const [topologyStats, setTopologyStats] = useState({
-    totalDevices: 0,
-    totalLinks: 0,
-    routerCount: 0,
-    switchCount: 0,
-    serverCount: 0,
-    unknownCount: 0
-  });
+  const [viewMode, setViewMode] = useState('network');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+  const [hoveredNode, setHoveredNode] = useState(null);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+
+  // Device type configurations
+  const deviceConfig = {
+    router: { 
+      icon: '🔀', 
+      color: '#4f46e5', 
+      bgColor: '#f3f4f6',
+      borderColor: '#e5e7eb'
+    },
+    switch: { 
+      icon: '⚡', 
+      color: '#059669', 
+      bgColor: '#f0fdf4',
+      borderColor: '#d1fae5'
+    },
+    server: { 
+      icon: '💻', 
+      color: '#dc2626', 
+      bgColor: '#fef2f2',
+      borderColor: '#fecaca'
+    },
+    unknown: { 
+      icon: '❓', 
+      color: '#6b7280', 
+      bgColor: '#f9fafb',
+      borderColor: '#e5e7eb'
+    },
+    host: { 
+      icon: '🖥️', 
+      color: '#7c3aed', 
+      bgColor: '#faf5ff',
+      borderColor: '#e9d5ff'
+    }
+  };
+
+  // Status configurations
+  const statusConfig = {
+    online: { color: '#10b981', bgColor: '#d1fae5', label: 'Online' },
+    offline: { color: '#ef4444', bgColor: '#fee2e2', label: 'Offline' },
+    unknown: { color: '#6b7280', bgColor: '#f3f4f6', label: 'Unknown' }
+  };
 
   // Load topology data
-  useEffect(() => {
-    loadTopologyData();
-    
-    if (autoRefresh) {
-      const interval = setInterval(loadTopologyData, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [autoRefresh]);
-
-  // WebSocket event listeners
-  useEffect(() => {
-    if (socket && connected) {
-      socket.on('topologyUpdate', (data) => {
-        if (data.devices) setDevices(data.devices);
-        if (data.links) setLinks(data.links);
-        updateTopologyStats(data.devices || devices, data.links || links);
-      });
-
-      socket.on('deviceStatusChanged', (device) => {
-        setDevices(prev => prev.map(d => 
-          d.ip === device.ip ? { ...d, status: device.status } : d
-        ));
-      });
-
-      return () => {
-        socket.off('topologyUpdate');
-        socket.off('deviceStatusChanged');
-      };
-    }
-  }, [socket, connected, devices, links]);
-
-  const loadTopologyData = async () => {
+  const loadTopologyData = useCallback(async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const headers = { 'Authorization': `Bearer ${token}` };
+      setMessage({ type: '', text: '' });
 
       const [devicesRes, topologyRes] = await Promise.all([
-        api.get('/devices', { headers }),
-        api.get('/dashboard/topology', { headers }).catch(() => ({ data: { nodes: [], links: [] } }))
+        api.get('/devices'),
+        api.get('/topology').catch(() => ({ data: { topology: [] } }))
       ]);
 
-      const devicesData = devicesRes.data || [];
-      const topologyData = topologyRes.data || { nodes: [], links: [] };
+      if (devicesRes.data && devicesRes.data.devices) {
+        const devicesData = devicesRes.data.devices.map(device => ({
+          id: device._id || device.id,
+          ip: device.ipAddress || device.ip,
+          name: device.name || device.hostname || device.ip || 'Unknown',
+          type: determineDeviceType(device),
+          status: normalizeStatus(device.status),
+          metrics: device.metrics || {},
+          lastSeen: device.lastSeen,
+          manufacturer: device.details?.manufacturer || 'Unknown',
+          model: device.details?.model || 'Unknown'
+        }));
 
-      setDevices(devicesData);
-      setLinks(topologyData.links || []);
-      updateTopologyStats(devicesData, topologyData.links || []);
-      drawTopology(devicesData, topologyData.links || []);
+        setDevices(devicesData);
 
+        // Generate smart links based on network topology
+        const smartLinks = generateSmartLinks(devicesData);
+        setLinks(smartLinks);
+
+        if (devicesData.length === 0) {
+          setMessage({ 
+            type: 'info', 
+            text: 'No devices discovered yet. Use the Discovery page to add devices to your network.' 
+          });
+        }
+      }
     } catch (error) {
       console.error('Error loading topology:', error);
-      setMessage({ type: 'danger', text: 'Failed to load network topology' });
+      setMessage({ 
+        type: 'danger', 
+        text: 'Failed to load network topology. Please try refreshing the page.' 
+      });
+      setDevices([]);
+      setLinks([]);
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  // Determine device type based on available information
+  const determineDeviceType = (device) => {
+    if (device.deviceType) return device.deviceType.toLowerCase();
+    if (device.type) return device.type.toLowerCase();
+    
+    // Intelligent type detection based on name/IP patterns
+    const name = (device.name || device.hostname || '').toLowerCase();
+    const ip = device.ipAddress || device.ip || '';
+    
+    if (name.includes('router') || name.includes('gw') || name.includes('gateway')) return 'router';
+    if (name.includes('switch') || name.includes('sw')) return 'switch';
+    if (name.includes('server') || name.includes('srv')) return 'server';
+    if (ip.endsWith('.1') || ip.endsWith('.254')) return 'router'; // Common gateway IPs
+    
+    return 'unknown';
   };
 
-  const updateTopologyStats = (devicesData, linksData) => {
-    const stats = {
-      totalDevices: devicesData.length,
-      totalLinks: linksData.length,
-      routerCount: devicesData.filter(d => d.type === 'router').length,
-      switchCount: devicesData.filter(d => d.type === 'switch').length,
-      serverCount: devicesData.filter(d => d.type === 'server').length,
-      unknownCount: devicesData.filter(d => !d.type || d.type === 'unknown').length
+  // Normalize device status
+  const normalizeStatus = (status) => {
+    if (!status) return 'unknown';
+    const s = status.toLowerCase();
+    if (s === 'up' || s === 'online' || s === 'active') return 'online';
+    if (s === 'down' || s === 'offline' || s === 'inactive') return 'offline';
+    return 'unknown';
+  };
+
+  // Generate intelligent network links
+  const generateSmartLinks = (devicesData) => {
+    const links = [];
+    const routers = devicesData.filter(d => d.type === 'router');
+    const switches = devicesData.filter(d => d.type === 'switch');
+    const others = devicesData.filter(d => d.type !== 'router' && d.type !== 'switch');
+
+    // Connect routers to each other (backbone)
+    for (let i = 0; i < routers.length; i++) {
+      for (let j = i + 1; j < routers.length; j++) {
+        if (areDevicesConnected(routers[i], routers[j])) {
+          links.push({
+            id: `${routers[i].id}-${routers[j].id}`,
+            source: routers[i].id,
+            target: routers[j].id,
+            type: 'backbone',
+            strength: 3
+          });
+        }
+      }
+    }
+
+    // Connect switches to routers
+    switches.forEach(sw => {
+      const nearestRouter = findNearestRouter(sw, routers);
+      if (nearestRouter) {
+        links.push({
+          id: `${nearestRouter.id}-${sw.id}`,
+          source: nearestRouter.id,
+          target: sw.id,
+          type: 'infrastructure',
+          strength: 2
+        });
+      }
+    });
+
+    // Connect other devices to switches/routers
+    others.forEach(device => {
+      const nearestInfra = findNearestInfrastructure(device, [...routers, ...switches]);
+      if (nearestInfra) {
+        links.push({
+          id: `${nearestInfra.id}-${device.id}`,
+          source: nearestInfra.id,
+          target: device.id,
+          type: 'access',
+          strength: 1
+        });
+      }
+    });
+
+    return links;
+  };
+
+  // Helper function to determine if devices are connected
+  const areDevicesConnected = (device1, device2) => {
+    const ip1 = device1.ip || '';
+    const ip2 = device2.ip || '';
+    
+    // Same subnet logic (simplified)
+    const subnet1 = ip1.split('.').slice(0, 3).join('.');
+    const subnet2 = ip2.split('.').slice(0, 3).join('.');
+    
+    return subnet1 === subnet2;
+  };
+
+  // Find nearest router for a device
+  const findNearestRouter = (device, routers) => {
+    return routers.find(router => areDevicesConnected(device, router)) || routers[0];
+  };
+
+  // Find nearest infrastructure device
+  const findNearestInfrastructure = (device, infraDevices) => {
+    return infraDevices.find(infra => areDevicesConnected(device, infra)) || infraDevices[0];
+  };
+
+  // Handle container resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setDimensions({
+          width: Math.max(rect.width - 40, 600),
+          height: Math.max(rect.height - 40, 400)
+        });
+      }
     };
-    setTopologyStats(stats);
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Position devices using force-directed layout
+  const positionDevices = (devicesData, width, height) => {
+    const positioned = devicesData.map((device, index) => {
+      let x, y;
+
+      if (viewMode === 'network') {
+        // Smart positioning based on device type
+        switch (device.type) {
+          case 'router':
+            x = width / 2 + (Math.random() - 0.5) * 200;
+            y = height / 4 + (Math.random() - 0.5) * 100;
+            break;
+          case 'switch':
+            x = width / 4 + (index % 2) * (width / 2) + (Math.random() - 0.5) * 100;
+            y = height / 2 + (Math.random() - 0.5) * 100;
+            break;
+          default:
+            x = 100 + (index % 6) * ((width - 200) / 6) + (Math.random() - 0.5) * 50;
+            y = height * 0.75 + (Math.random() - 0.5) * 100;
+        }
+      } else {
+        // Grid layout
+        const cols = Math.ceil(Math.sqrt(devicesData.length));
+        const row = Math.floor(index / cols);
+        const col = index % cols;
+        x = 50 + col * ((width - 100) / cols);
+        y = 50 + row * ((height - 100) / Math.ceil(devicesData.length / cols));
+      }
+
+      return { ...device, x, y };
+    });
+
+    return positioned;
   };
 
-  const drawTopology = (devicesData, linksData) => {
-    if (!svgRef.current) return;
+  // Draw the topology
+  const drawTopology = useCallback(() => {
+    if (!svgRef.current || devices.length === 0) return;
 
     const svg = svgRef.current;
-    const rect = svg.getBoundingClientRect();
-    const width = rect.width || 800;
-    const height = rect.height || 600;
+    const { width, height } = dimensions;
 
-    // Clear existing content
-    svg.innerHTML = '';
+    // Filter devices based on status
+    const filteredDevices = filterStatus === 'all' 
+      ? devices 
+      : devices.filter(d => d.status === filterStatus);
 
-    // Filter devices based on selected type
-    const filteredDevices = filterType === 'all' 
-      ? devicesData 
-      : devicesData.filter(d => d.type === filterType);
-
-    // Position devices based on view mode
     const positionedDevices = positionDevices(filteredDevices, width, height);
 
-    // Draw links first (so they appear behind devices)
-    linksData.forEach(link => {
-      const sourceDevice = positionedDevices.find(d => d.ip === link.source);
-      const targetDevice = positionedDevices.find(d => d.ip === link.target);
-      
+    // Clear and setup SVG
+    svg.innerHTML = '';
+    svg.setAttribute('viewBox', `${panOffset.x} ${panOffset.y} ${width / zoomLevel} ${height / zoomLevel}`);
+
+    // Create defs for gradients and filters
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    
+    // Add drop shadow filter
+    const filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+    filter.setAttribute('id', 'drop-shadow');
+    filter.innerHTML = `
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.2)" />
+    `;
+    defs.appendChild(filter);
+    svg.appendChild(defs);
+
+    // Draw links
+    links.forEach(link => {
+      const sourceDevice = positionedDevices.find(d => d.id === link.source);
+      const targetDevice = positionedDevices.find(d => d.id === link.target);
+
       if (sourceDevice && targetDevice) {
-        drawLink(svg, sourceDevice, targetDevice, link);
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', sourceDevice.x);
+        line.setAttribute('y1', sourceDevice.y);
+        line.setAttribute('x2', targetDevice.x);
+        line.setAttribute('y2', targetDevice.y);
+        line.setAttribute('stroke', getConnectionColor(link.type));
+        line.setAttribute('stroke-width', link.strength || 1);
+        line.setAttribute('opacity', '0.6');
+        line.setAttribute('class', 'topology-link');
+        svg.appendChild(line);
       }
     });
 
     // Draw devices
     positionedDevices.forEach(device => {
-      drawDevice(svg, device);
-    });
-  };
+      const deviceGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      deviceGroup.setAttribute('class', 'device-node');
+      deviceGroup.setAttribute('data-device-id', device.id);
 
-  const positionDevices = (devicesData, width, height) => {
-    const devices = [...devicesData];
-    const padding = 100;
-    const usableWidth = width - 2 * padding;
-    const usableHeight = height - 2 * padding;
+      const config = deviceConfig[device.type] || deviceConfig.unknown;
+      const statusConf = statusConfig[device.status] || statusConfig.unknown;
 
-    if (viewMode === 'hierarchical') {
-      // Group devices by type for hierarchical layout
-      const routers = devices.filter(d => d.type === 'router');
-      const switches = devices.filter(d => d.type === 'switch');
-      const servers = devices.filter(d => d.type === 'server');
-      const others = devices.filter(d => !['router', 'switch', 'server'].includes(d.type));
+      // Device circle background
+      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      circle.setAttribute('cx', device.x);
+      circle.setAttribute('cy', device.y);
+      circle.setAttribute('r', '25');
+      circle.setAttribute('fill', config.bgColor);
+      circle.setAttribute('stroke', statusConf.color);
+      circle.setAttribute('stroke-width', '3');
+      circle.setAttribute('filter', 'url(#drop-shadow)');
+      circle.setAttribute('class', 'device-circle');
 
-      let currentY = padding;
-      const layerHeight = usableHeight / 4;
+      // Device icon (text)
+      const icon = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      icon.setAttribute('x', device.x);
+      icon.setAttribute('y', device.y + 6);
+      icon.setAttribute('text-anchor', 'middle');
+      icon.setAttribute('font-size', '18');
+      icon.setAttribute('fill', config.color);
+      icon.textContent = config.icon;
 
-      // Position routers at top
-      routers.forEach((device, index) => {
-        device.x = padding + (usableWidth / (routers.length + 1)) * (index + 1);
-        device.y = currentY;
+      // Device label
+      const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      label.setAttribute('x', device.x);
+      label.setAttribute('y', device.y + 45);
+      label.setAttribute('text-anchor', 'middle');
+      label.setAttribute('font-size', '12');
+      label.setAttribute('fill', '#374151');
+      label.setAttribute('font-weight', '500');
+      label.textContent = device.name.length > 12 ? device.name.substring(0, 12) + '...' : device.name;
+
+      // Status indicator
+      const statusDot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      statusDot.setAttribute('cx', device.x + 18);
+      statusDot.setAttribute('cy', device.y - 18);
+      statusDot.setAttribute('r', '6');
+      statusDot.setAttribute('fill', statusConf.color);
+      statusDot.setAttribute('stroke', 'white');
+      statusDot.setAttribute('stroke-width', '2');
+
+      // Add interactivity
+      deviceGroup.addEventListener('click', () => {
+        setSelectedDevice(device);
+        setShowDeviceModal(true);
       });
 
-      currentY += layerHeight;
-
-      // Position switches in middle
-      switches.forEach((device, index) => {
-        device.x = padding + (usableWidth / (switches.length + 1)) * (index + 1);
-        device.y = currentY;
+      deviceGroup.addEventListener('mouseenter', () => {
+        setHoveredNode(device.id);
+        deviceGroup.style.cursor = 'pointer';
+        circle.setAttribute('r', '28');
+        circle.setAttribute('stroke-width', '4');
       });
 
-      currentY += layerHeight;
-
-      // Position servers
-      servers.forEach((device, index) => {
-        device.x = padding + (usableWidth / (servers.length + 1)) * (index + 1);
-        device.y = currentY;
+      deviceGroup.addEventListener('mouseleave', () => {
+        setHoveredNode(null);
+        circle.setAttribute('r', '25');
+        circle.setAttribute('stroke-width', '3');
       });
 
-      currentY += layerHeight;
-
-      // Position other devices at bottom
-      others.forEach((device, index) => {
-        device.x = padding + (usableWidth / (others.length + 1)) * (index + 1);
-        device.y = currentY;
-      });
-
-    } else if (viewMode === 'circular') {
-      // Circular layout
-      const centerX = width / 2;
-      const centerY = height / 2;
-      const radius = Math.min(usableWidth, usableHeight) / 2 - 50;
-
-      devices.forEach((device, index) => {
-        const angle = (2 * Math.PI * index) / devices.length;
-        device.x = centerX + radius * Math.cos(angle);
-        device.y = centerY + radius * Math.sin(angle);
-      });
-
-    } else {
-      // Grid layout
-      const cols = Math.ceil(Math.sqrt(devices.length));
-      const rows = Math.ceil(devices.length / cols);
-      const cellWidth = usableWidth / cols;
-      const cellHeight = usableHeight / rows;
-
-      devices.forEach((device, index) => {
-        const row = Math.floor(index / cols);
-        const col = index % cols;
-        device.x = padding + col * cellWidth + cellWidth / 2;
-        device.y = padding + row * cellHeight + cellHeight / 2;
-      });
-    }
-
-    return devices;
-  };
-
-  const drawDevice = (svg, device) => {
-    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    group.setAttribute('class', 'device-node');
-    group.setAttribute('cursor', 'pointer');
-
-    // Device circle
-    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    circle.setAttribute('cx', device.x);
-    circle.setAttribute('cy', device.y);
-    circle.setAttribute('r', getDeviceSize(device));
-    circle.setAttribute('fill', getDeviceColor(device));
-    circle.setAttribute('stroke', device.status === 'up' ? '#28a745' : '#dc3545');
-    circle.setAttribute('stroke-width', '3');
-
-    // Device icon (simplified as text)
-    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    text.setAttribute('x', device.x);
-    text.setAttribute('y', device.y + 5);
-    text.setAttribute('text-anchor', 'middle');
-    text.setAttribute('fill', 'white');
-    text.setAttribute('font-size', '14');
-    text.setAttribute('font-weight', 'bold');
-    text.textContent = getDeviceIcon(device);
-
-    // Device label
-    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    label.setAttribute('x', device.x);
-    label.setAttribute('y', device.y + getDeviceSize(device) + 20);
-    label.setAttribute('text-anchor', 'middle');
-    label.setAttribute('fill', '#ffffff');
-    label.setAttribute('font-size', '12');
-    label.textContent = device.hostname || device.name || device.ip;
-
-    // Add click event
-    group.addEventListener('click', () => {
-      setSelectedDevice(device);
-      setShowDeviceModal(true);
+      deviceGroup.appendChild(circle);
+      deviceGroup.appendChild(icon);
+      deviceGroup.appendChild(label);
+      deviceGroup.appendChild(statusDot);
+      svg.appendChild(deviceGroup);
     });
 
-    group.appendChild(circle);
-    group.appendChild(text);
-    group.appendChild(label);
-    svg.appendChild(group);
-  };
+  }, [devices, links, dimensions, viewMode, filterStatus, zoomLevel, panOffset]);
 
-  const drawLink = (svg, source, target, link) => {
-    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    line.setAttribute('x1', source.x);
-    line.setAttribute('y1', source.y);
-    line.setAttribute('x2', target.x);
-    line.setAttribute('y2', target.y);
-    line.setAttribute('stroke', getLinkColor(link));
-    line.setAttribute('stroke-width', getLinkWidth(link));
-    line.setAttribute('cursor', 'pointer');
-
-    // Add click event for link details
-    line.addEventListener('click', () => {
-      setSelectedLink({ ...link, source, target });
-      setShowLinkModal(true);
-    });
-
-    svg.appendChild(line);
-  };
-
-  const getDeviceSize = (device) => {
-    switch (device.type) {
-      case 'router': return 25;
-      case 'switch': return 20;
-      case 'server': return 30;
-      default: return 18;
+  // Get connection color based on type
+  const getConnectionColor = (type) => {
+    switch (type) {
+      case 'backbone': return '#4f46e5';
+      case 'infrastructure': return '#059669';
+      case 'access': return '#6b7280';
+      default: return '#e5e7eb';
     }
   };
 
-  const getDeviceColor = (device) => {
-    switch (device.type) {
-      case 'router': return '#007bff';
-      case 'switch': return '#17a2b8';
-      case 'server': return '#28a745';
-      case 'printer': return '#ffc107';
-      case 'computer': return '#6c757d';
-      default: return '#6f42c1';
-    }
-  };
-
-  const getDeviceIcon = (device) => {
-    switch (device.type) {
-      case 'router': return 'R';
-      case 'switch': return 'S';
-      case 'server': return 'SV';
-      case 'printer': return 'P';
-      case 'computer': return 'PC';
-      default: return '?';
-    }
-  };
-
-  const getLinkColor = (link) => {
-    if (link.status === 'down') return '#dc3545';
-    if (link.utilization > 80) return '#ffc107';
-    return '#28a745';
-  };
-
-  const getLinkWidth = (link) => {
-    return Math.max(1, Math.min(5, (link.bandwidth || 100) / 100));
-  };
-
-  const refreshTopology = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      await api.post('/topology/discover', {}, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      setMessage({ type: 'info', text: 'Topology discovery started. Please wait...' });
-      setTimeout(() => {
-        loadTopologyData();
-        setMessage({ type: '', text: '' });
-      }, 5000);
-      
-    } catch (error) {
-      setMessage({ type: 'danger', text: 'Failed to refresh topology' });
-    }
-  };
-
-  // Redraw topology when view mode or filter changes
+  // Update from real-time data
   useEffect(() => {
-    if (!loading) {
-      drawTopology(devices, links);
+    if (realTimeData && realTimeData.devices) {
+      const updatedDevices = realTimeData.devices.map(device => ({
+        id: device._id || device.id,
+        ip: device.ipAddress || device.ip,
+        name: device.name || device.hostname || device.ip || 'Unknown',
+        type: determineDeviceType(device),
+        status: normalizeStatus(device.status),
+        metrics: device.metrics || {},
+        lastSeen: device.lastSeen,
+        manufacturer: device.details?.manufacturer || 'Unknown',
+        model: device.details?.model || 'Unknown'
+      }));
+      
+      setDevices(updatedDevices);
+      setLinks(generateSmartLinks(updatedDevices));
     }
-  }, [viewMode, filterType, devices, links, loading]);
+  }, [realTimeData]);
+
+  // Initial load and draw
+  useEffect(() => {
+    loadTopologyData();
+  }, [loadTopologyData]);
+
+  useEffect(() => {
+    drawTopology();
+  }, [drawTopology]);
+
+  // Socket event listeners
+  useEffect(() => {
+    if (socket && connected) {
+      const handleDeviceUpdate = (data) => {
+        loadTopologyData(); // Refresh topology on device changes
+      };
+
+      socket.on('dashboard.deviceAdded', handleDeviceUpdate);
+      socket.on('dashboard.deviceDeleted', handleDeviceUpdate);
+      socket.on('deviceStatusChanged', handleDeviceUpdate);
+
+      return () => {
+        socket.off('dashboard.deviceAdded', handleDeviceUpdate);
+        socket.off('dashboard.deviceDeleted', handleDeviceUpdate);
+        socket.off('deviceStatusChanged', handleDeviceUpdate);
+      };
+    }
+  }, [socket, connected]);
+
+  // Statistics
+  const stats = {
+    total: devices.length,
+    online: devices.filter(d => d.status === 'online').length,
+    offline: devices.filter(d => d.status === 'offline').length,
+    routers: devices.filter(d => d.type === 'router').length,
+    switches: devices.filter(d => d.type === 'switch').length,
+    servers: devices.filter(d => d.type === 'server').length
+  };
 
   return (
-    <Container fluid className="p-4">
-      {/* Header */}
+    <Container fluid className="topology-container">
       <Row className="mb-4">
         <Col>
-          <div className="d-flex justify-content-between align-items-center">
-            <div>
-              <h2 className="text-white mb-1">
-                <i className="fas fa-project-diagram me-2 text-success"></i>
-                Network Topology
-              </h2>
-              <p className="text-muted mb-0">Interactive network topology visualization</p>
-            </div>
-            <div className="d-flex align-items-center gap-2">
-              <Badge bg={connected ? 'success' : 'danger'}>
-                <i className="fas fa-circle me-1"></i>
-                {connected ? 'Connected' : 'Disconnected'}
-              </Badge>
-              <Button variant="outline-primary" size="sm" onClick={refreshTopology}>
-                <i className="fas fa-sync-alt me-1"></i>
-                Discover
-              </Button>
-            </div>
-          </div>
-        </Col>
-      </Row>
-
-      {message.text && (
-        <Row className="mb-4">
-          <Col>
-            <Alert variant={message.type} className={`bg-${message.type} bg-opacity-20 border-${message.type} text-white`}>
-              <i className={`fas fa-${message.type === 'success' ? 'check-circle' : message.type === 'danger' ? 'exclamation-triangle' : 'info-circle'} me-2`}></i>
-              {message.text}
-            </Alert>
-          </Col>
-        </Row>
-      )}
-
-      {/* Topology Stats */}
-      <Row className="mb-4">
-        <Col>
-          <Card className="bg-dark border-secondary">
-            <Card.Body>
-              <Row className="text-center">
-                <Col md={2}>
-                  <div className="text-primary h4">{topologyStats.totalDevices}</div>
-                  <small className="text-muted">Total Devices</small>
-                </Col>
-                <Col md={2}>
-                  <div className="text-info h4">{topologyStats.totalLinks}</div>
-                  <small className="text-muted">Total Links</small>
-                </Col>
-                <Col md={2}>
-                  <div className="text-success h4">{topologyStats.routerCount}</div>
-                  <small className="text-muted">Routers</small>
-                </Col>
-                <Col md={2}>
-                  <div className="text-warning h4">{topologyStats.switchCount}</div>
-                  <small className="text-muted">Switches</small>
-                </Col>
-                <Col md={2}>
-                  <div className="text-danger h4">{topologyStats.serverCount}</div>
-                  <small className="text-muted">Servers</small>
-                </Col>
-                <Col md={2}>
-                  <div className="text-secondary h4">{topologyStats.unknownCount}</div>
-                  <small className="text-muted">Unknown</small>
-                </Col>
-              </Row>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
-      {/* Controls */}
-      <Row className="mb-4">
-        <Col>
-          <Card className="bg-dark border-secondary">
-            <Card.Body>
-              <Row className="align-items-center">
-                <Col md={4}>
-                  <Form.Label className="text-white me-2">View Mode:</Form.Label>
-                  <ButtonGroup>
-                    <Button
-                      variant={viewMode === 'hierarchical' ? 'primary' : 'outline-primary'}
-                      size="sm"
-                      onClick={() => setViewMode('hierarchical')}
-                    >
-                      Hierarchical
-                    </Button>
-                    <Button
-                      variant={viewMode === 'circular' ? 'primary' : 'outline-primary'}
-                      size="sm"
-                      onClick={() => setViewMode('circular')}
-                    >
-                      Circular
-                    </Button>
-                    <Button
-                      variant={viewMode === 'grid' ? 'primary' : 'outline-primary'}
-                      size="sm"
-                      onClick={() => setViewMode('grid')}
-                    >
-                      Grid
-                    </Button>
-                  </ButtonGroup>
-                </Col>
-                <Col md={4}>
-                  <Form.Label className="text-white me-2">Filter by Type:</Form.Label>
-                  <Form.Select
-                    value={filterType}
-                    onChange={(e) => setFilterType(e.target.value)}
-                    size="sm"
-                    className="bg-dark text-white border-secondary"
-                    style={{ width: 'auto', display: 'inline-block' }}
+          <Card className="modern-card">
+            <Card.Header className="d-flex justify-content-between align-items-center">
+              <div>
+                <h5 className="mb-0">Network Topology</h5>
+                <small className="text-muted">Interactive network visualization</small>
+              </div>
+              <div className="d-flex gap-2">
+                <ButtonGroup size="sm">
+                  <Button 
+                    variant={viewMode === 'network' ? 'primary' : 'outline-primary'}
+                    onClick={() => setViewMode('network')}
                   >
-                    <option value="all">All Devices</option>
-                    <option value="router">Routers</option>
-                    <option value="switch">Switches</option>
-                    <option value="server">Servers</option>
-                    <option value="computer">Computers</option>
-                  </Form.Select>
-                </Col>
-                <Col md={4}>
-                  <Form.Check
-                    type="switch"
-                    id="auto-refresh"
-                    label="Auto Refresh"
-                    checked={autoRefresh}
-                    onChange={(e) => setAutoRefresh(e.target.checked)}
-                    className="text-white"
-                  />
-                </Col>
-              </Row>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+                    Network
+                  </Button>
+                  <Button 
+                    variant={viewMode === 'grid' ? 'primary' : 'outline-primary'}
+                    onClick={() => setViewMode('grid')}
+                  >
+                    Grid
+                  </Button>
+                </ButtonGroup>
 
-      {/* Topology Visualization */}
-      <Row>
-        <Col>
-          <Card className="bg-dark border-secondary">
-            <Card.Header className="bg-dark border-secondary">
-              <h5 className="mb-0 text-white">
-                <i className="fas fa-sitemap me-2"></i>
-                Network Map
-              </h5>
+                <ButtonGroup size="sm">
+                  <Button 
+                    variant={filterStatus === 'all' ? 'success' : 'outline-success'}
+                    onClick={() => setFilterStatus('all')}
+                  >
+                    All ({stats.total})
+                  </Button>
+                  <Button 
+                    variant={filterStatus === 'online' ? 'success' : 'outline-success'}
+                    onClick={() => setFilterStatus('online')}
+                  >
+                    Online ({stats.online})
+                  </Button>
+                  <Button 
+                    variant={filterStatus === 'offline' ? 'danger' : 'outline-danger'}
+                    onClick={() => setFilterStatus('offline')}
+                  >
+                    Offline ({stats.offline})
+                  </Button>
+                </ButtonGroup>
+
+                <Button 
+                  size="sm" 
+                  variant="outline-primary" 
+                  onClick={loadTopologyData}
+                  disabled={loading}
+                >
+                  {loading ? '🔄' : '↻'} Refresh
+                </Button>
+              </div>
             </Card.Header>
-            <Card.Body className="p-0">
-              {loading ? (
-                <div className="d-flex justify-content-center align-items-center" style={{ height: '600px' }}>
-                  <div className="text-center">
-                    <div className="spinner-border text-primary mb-3" role="status"></div>
-                    <p className="text-muted">Loading network topology...</p>
-                  </div>
-                </div>
-              ) : (
+            <Card.Body className="p-0" ref={containerRef}>
+              {message.text && (
+                <Alert variant={message.type} className="m-3 mb-0">
+                  {message.text}
+                </Alert>
+              )}
+
+              <div className="topology-workspace" style={{ height: '500px', position: 'relative' }}>
                 <svg
                   ref={svgRef}
                   width="100%"
-                  height="600"
-                  style={{ backgroundColor: '#1a1a1a' }}
-                  className="border-0"
-                />
-              )}
+                  height="100%"
+                  style={{ background: '#fafafa', borderRadius: '0 0 8px 8px' }}
+                >
+                </svg>
+
+                {devices.length > 0 && (
+                  <div className="topology-legend">
+                    <div className="legend-item">
+                      <span className="legend-icon router">🔀</span> Router ({stats.routers})
+                    </div>
+                    <div className="legend-item">
+                      <span className="legend-icon switch">⚡</span> Switch ({stats.switches})
+                    </div>
+                    <div className="legend-item">
+                      <span className="legend-icon server">💻</span> Server ({stats.servers})
+                    </div>
+                  </div>
+                )}
+              </div>
             </Card.Body>
           </Card>
         </Col>
       </Row>
 
       {/* Device Details Modal */}
-      <Modal show={showDeviceModal} onHide={() => setShowDeviceModal(false)} size="lg" centered>
-        <Modal.Header closeButton className="bg-dark border-secondary">
-          <Modal.Title className="text-white">Device Details</Modal.Title>
+      <Modal show={showDeviceModal} onHide={() => setShowDeviceModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Device Details</Modal.Title>
         </Modal.Header>
-        <Modal.Body className="bg-dark text-white">
+        <Modal.Body>
           {selectedDevice && (
-            <Row>
-              <Col md={6}>
-                <Table className="table-dark table-sm">
-                  <tbody>
-                    <tr>
-                      <td>IP Address:</td>
-                      <td>{selectedDevice.ip}</td>
-                    </tr>
-                    <tr>
-                      <td>Hostname:</td>
-                      <td>{selectedDevice.hostname || 'N/A'}</td>
-                    </tr>
-                    <tr>
-                      <td>Type:</td>
-                      <td>
-                        <Badge bg="secondary">{selectedDevice.type || 'Unknown'}</Badge>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>Status:</td>
-                      <td>
-                        <Badge bg={selectedDevice.status === 'up' ? 'success' : 'danger'}>
-                          {selectedDevice.status || 'Unknown'}
-                        </Badge>
-                      </td>
-                    </tr>
-                  </tbody>
-                </Table>
-              </Col>
-              <Col md={6}>
-                <Table className="table-dark table-sm">
-                  <tbody>
-                    <tr>
-                      <td>MAC Address:</td>
-                      <td>{selectedDevice.mac || 'N/A'}</td>
-                    </tr>
-                    <tr>
-                      <td>Manufacturer:</td>
-                      <td>{selectedDevice.manufacturer || 'N/A'}</td>
-                    </tr>
-                    <tr>
-                      <td>Response Time:</td>
-                      <td>{selectedDevice.responseTime ? `${selectedDevice.responseTime}ms` : 'N/A'}</td>
-                    </tr>
-                    <tr>
-                      <td>Last Seen:</td>
-                      <td>{selectedDevice.lastSeen ? new Date(selectedDevice.lastSeen).toLocaleString() : 'N/A'}</td>
-                    </tr>
-                  </tbody>
-                </Table>
-              </Col>
-            </Row>
+            <div>
+              <Row className="mb-3">
+                <Col sm={4}><strong>Name:</strong></Col>
+                <Col sm={8}>{selectedDevice.name}</Col>
+              </Row>
+              <Row className="mb-3">
+                <Col sm={4}><strong>IP Address:</strong></Col>
+                <Col sm={8}>
+                  <code>{selectedDevice.ip}</code>
+                </Col>
+              </Row>
+              <Row className="mb-3">
+                <Col sm={4}><strong>Status:</strong></Col>
+                <Col sm={8}>
+                  <Badge bg={selectedDevice.status === 'online' ? 'success' : 'danger'}>
+                    {statusConfig[selectedDevice.status]?.label || 'Unknown'}
+                  </Badge>
+                </Col>
+              </Row>
+              <Row className="mb-3">
+                <Col sm={4}><strong>Type:</strong></Col>
+                <Col sm={8}>
+                  <span className="device-type-badge">
+                    {deviceConfig[selectedDevice.type]?.icon} {selectedDevice.type}
+                  </span>
+                </Col>
+              </Row>
+              <Row className="mb-3">
+                <Col sm={4}><strong>Manufacturer:</strong></Col>
+                <Col sm={8}>{selectedDevice.manufacturer}</Col>
+              </Row>
+              <Row className="mb-3">
+                <Col sm={4}><strong>Model:</strong></Col>
+                <Col sm={8}>{selectedDevice.model}</Col>
+              </Row>
+              {selectedDevice.metrics?.responseTime && (
+                <Row className="mb-3">
+                  <Col sm={4}><strong>Response Time:</strong></Col>
+                  <Col sm={8}>{selectedDevice.metrics.responseTime}ms</Col>
+                </Row>
+              )}
+              {selectedDevice.lastSeen && (
+                <Row className="mb-3">
+                  <Col sm={4}><strong>Last Seen:</strong></Col>
+                  <Col sm={8}>{new Date(selectedDevice.lastSeen).toLocaleString()}</Col>
+                </Row>
+              )}
+            </div>
           )}
         </Modal.Body>
-        <Modal.Footer className="bg-dark border-secondary">
-          <Button variant="secondary" onClick={() => setShowDeviceModal(false)}>
-            Close
-          </Button>
-        </Modal.Footer>
-      </Modal>
-
-      {/* Link Details Modal */}
-      <Modal show={showLinkModal} onHide={() => setShowLinkModal(false)} centered>
-        <Modal.Header closeButton className="bg-dark border-secondary">
-          <Modal.Title className="text-white">Link Details</Modal.Title>
-        </Modal.Header>
-        <Modal.Body className="bg-dark text-white">
-          {selectedLink && (
-            <Table className="table-dark table-sm">
-              <tbody>
-                <tr>
-                  <td>Source:</td>
-                  <td>{selectedLink.source?.ip} ({selectedLink.source?.hostname || 'N/A'})</td>
-                </tr>
-                <tr>
-                  <td>Target:</td>
-                  <td>{selectedLink.target?.ip} ({selectedLink.target?.hostname || 'N/A'})</td>
-                </tr>
-                <tr>
-                  <td>Bandwidth:</td>
-                  <td>{selectedLink.bandwidth ? `${selectedLink.bandwidth} Mbps` : 'N/A'}</td>
-                </tr>
-                <tr>
-                  <td>Utilization:</td>
-                  <td>{selectedLink.utilization ? `${selectedLink.utilization}%` : 'N/A'}</td>
-                </tr>
-                <tr>
-                  <td>Status:</td>
-                  <td>
-                    <Badge bg={selectedLink.status === 'up' ? 'success' : 'danger'}>
-                      {selectedLink.status || 'Unknown'}
-                    </Badge>
-                  </td>
-                </tr>
-              </tbody>
-            </Table>
-          )}
-        </Modal.Body>
-        <Modal.Footer className="bg-dark border-secondary">
-          <Button variant="secondary" onClick={() => setShowLinkModal(false)}>
-            Close
-          </Button>
-        </Modal.Footer>
       </Modal>
     </Container>
   );

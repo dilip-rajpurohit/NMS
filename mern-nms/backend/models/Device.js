@@ -9,15 +9,34 @@ const deviceSchema = new mongoose.Schema({
   },
   ipAddress: {
     type: String,
-    required: true,
+    required: [true, 'IP address is required'],
     unique: true,
-    match: [/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/, 'Please enter a valid IP address']
+    trim: true,
+    validate: {
+      validator: function(v) {
+        // Enhanced IP validation including private ranges
+        const ipRegex = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/;
+        if (!ipRegex.test(v)) return false;
+        
+        const parts = v.split('.').map(Number);
+        return parts.every(part => part >= 0 && part <= 255);
+      },
+      message: 'Please enter a valid IPv4 address (e.g., 192.168.1.100)'
+    }
   },
   macAddress: {
     type: String,
     unique: true,
     sparse: true,
-    match: [/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/, 'Please enter a valid MAC address']
+    trim: true,
+    uppercase: true,
+    validate: {
+      validator: function(v) {
+        if (!v) return true; // Allow null/undefined for sparse index
+        return /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/.test(v);
+      },
+      message: 'Please enter a valid MAC address (e.g., 00:11:22:33:44:55)'
+    }
   },
   deviceType: {
     type: String,
@@ -33,6 +52,12 @@ const deviceSchema = new mongoose.Schema({
     type: String,
     trim: true,
     maxlength: 100
+  },
+  hostname: {
+    type: String,
+    trim: true,
+    maxlength: 100,
+    default: null
   },
   serialNumber: {
     type: String,
@@ -101,7 +126,8 @@ const deviceSchema = new mongoose.Schema({
     lastSeen: Date,
     responseTime: Number,
     packetLoss: Number,
-    availability: Number
+    availability: Number,
+    failureCount: { type: Number, default: 0 }
   },
   alerts: [{
     type: { type: String, required: true },
@@ -139,10 +165,6 @@ const deviceSchema = new mongoose.Schema({
   isVirtual: {
     type: Boolean,
     default: false
-  },
-  isActive: {
-    type: Boolean,
-    default: true
   },
   tags: [String],
   notes: String
@@ -184,15 +206,15 @@ deviceSchema.set('toJSON', {
 
 // Static methods
 deviceSchema.statics.findByType = function(type) {
-  return this.find({ deviceType: type, isActive: true });
+  return this.find({ deviceType: type });
 };
 
 deviceSchema.statics.findByStatus = function(status) {
-  return this.find({ status: status, isActive: true });
+  return this.find({ status: status });
 };
 
 deviceSchema.statics.findByLocation = function(building, floor = null, room = null) {
-  const query = { 'location.building': building, isActive: true };
+  const query = { 'location.building': building };
   if (floor) query['location.floor'] = floor;
   if (room) query['location.room'] = room;
   return this.find(query);
@@ -200,8 +222,7 @@ deviceSchema.statics.findByLocation = function(building, floor = null, room = nu
 
 deviceSchema.statics.findWithAlerts = function() {
   return this.find({ 
-    'alerts.acknowledged': false,
-    isActive: true 
+    'alerts.acknowledged': false
   });
 };
 

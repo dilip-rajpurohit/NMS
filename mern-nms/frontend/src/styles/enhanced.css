@@ -1,5 +1,10 @@
 /* Enhanced NMS Styles - Consistent design system */
 
+/* Global Box Sizing */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 /* Color Variables */
 :root {
   --nms-primary: #2563eb;
@@ -16,12 +21,18 @@
   --nms-offline: #ef4444;
   --nms-warning: #f59e0b;
   
-  /* Spacing */
-  --nms-spacing-xs: 0.25rem;
-  --nms-spacing-sm: 0.5rem;
-  --nms-spacing-md: 1rem;
-  --nms-spacing-lg: 1.5rem;
-  --nms-spacing-xl: 3rem;
+  /* Spacing - consistent with ProfileDashboard.css patterns */
+  --nms-spacing-xs: 4px;     /* 0.25rem */
+  --nms-spacing-sm: 8px;     /* 0.5rem */
+  --nms-spacing-md: 16px;    /* 1rem */
+  --nms-spacing-lg: 24px;    /* 1.5rem */
+  --nms-spacing-xl: 32px;    /* 2rem */
+  --nms-spacing-xxl: 48px;   /* 3rem */
+  
+  /* Form spacing */
+  --nms-form-gap: 18px;      /* consistent with ProfileDashboard */
+  --nms-card-padding: 20px;  /* consistent with ProfileDashboard */
+  --nms-section-gap: 24px;   /* consistent with ProfileDashboard */
   
   /* Border radius */
   --nms-border-radius: 0.375rem;
@@ -380,6 +391,155 @@
 .nms-form-control:focus {
   outline: 2px solid var(--nms-primary);
   outline-offset: 2px;
+}
+
+/* Improved Spacing and Layout */
+.main-content {
+  padding: 16px !important; /* Reduced from 24px to prevent overflow */
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important; /* Prevent unnecessary scrolling */
+}
+
+.content-wrapper {
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  max-height: calc(100vh - 30px) !important; /* Reduced from 40px */
+  overflow-y: auto !important;
+}
+
+/* Enhanced Card Spacing - Reduced sizes */
+.card {
+  padding: 16px !important; /* Reduced from 20px */
+  margin-bottom: 16px !important; /* Reduced from 24px */
+  box-sizing: border-box !important;
+  border-radius: var(--nms-border-radius-lg) !important;
+  box-shadow: var(--nms-shadow-sm) !important;
+  transition: box-shadow 0.15s ease-in-out !important;
+}
+
+.card:hover {
+  box-shadow: var(--nms-shadow) !important;
+}
+
+/* Form Improvements - Reduced sizes */
+.form-group {
+  margin-bottom: 14px !important; /* Reduced from 18px */
+}
+
+.form-control, .form-select {
+  padding: 10px 14px !important; /* Reduced padding */
+  border-radius: var(--nms-border-radius) !important;
+  border: 1px solid var(--border-color) !important;
+  background: var(--input-background) !important;
+  color: var(--text-primary) !important;
+  font-size: 13px !important; /* Reduced from 14px */
+  transition: all 0.15s ease-in-out !important;
+  box-sizing: border-box !important;
+}
+
+.form-control:focus, .form-select:focus {
+  border-color: var(--primary-blue) !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1) !important;
+  outline: none !important;
+}
+
+/* Button Improvements - Reduced sizes */
+.btn {
+  padding: 8px 16px !important; /* Reduced from 12px 20px */
+  border-radius: var(--nms-border-radius) !important;
+  font-weight: 500 !important;
+  font-size: 13px !important; /* Reduced font size */
+  transition: all 0.15s ease-in-out !important;
+  border: none !important;
+  cursor: pointer !important;
+  box-sizing: border-box !important;
+}
+
+.btn-primary {
+  background: var(--primary-blue) !important;
+  color: white !important;
+}
+
+.btn-primary:hover {
+  background: var(--primary-blue-hover) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Enhanced Light Theme - Improved Text Visibility */
+.light-theme {
+  --text-primary: #1f2937 !important; /* Darker text for better visibility */
+  --text-secondary: #4b5563 !important;
+  --text-muted: #6b7280 !important;
+}
+
+.light-theme .form-control,
+.light-theme .form-select {
+  background: white !important;
+  border-color: #d1d5db !important;
+  color: #1f2937 !important; /* Dark text for visibility */
+}
+
+.light-theme .form-control:focus,
+.light-theme .form-select:focus {
+  border-color: var(--primary-blue) !important;
+  background: white !important;
+  color: #1f2937 !important;
+}
+
+.light-theme .card {
+  background: white !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  color: #1f2937 !important;
+}
+
+.light-theme .card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+.light-theme .card-header {
+  background: #f9fafb !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  color: #1f2937 !important;
+}
+
+.light-theme .card-body {
+  color: #1f2937 !important;
+}
+
+.light-theme h1, .light-theme h2, .light-theme h3, 
+.light-theme h4, .light-theme h5, .light-theme h6 {
+  color: #1f2937 !important;
+}
+
+.light-theme p, .light-theme span, .light-theme div {
+  color: #374151 !important;
+}
+
+.light-theme .text-muted {
+  color: #6b7280 !important;
+}
+
+/* Table improvements for light theme */
+.light-theme .table {
+  color: #1f2937 !important;
+}
+
+.light-theme .table th {
+  background: #f3f4f6 !important;
+  border-color: #d1d5db !important;
+  color: #1f2937 !important;
+}
+
+.light-theme .table td {
+  border-color: #e5e7eb !important;
+  color: #374151 !important;
+}
+
+.light-theme .table-hover tbody tr:hover {
+  background-color: #f9fafb !important;
 }
 
 /* High Contrast Mode Support */

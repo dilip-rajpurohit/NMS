@@ -1,13 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Table, Badge, Button, Alert, Modal, Form, ButtonGroup, InputGroup, Pagination } from 'react-bootstrap';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Container, Row, Col, Card, Table, Badge, Button, Alert, Modal, Form, ButtonGroup, InputGroup, Pagination, Spinner } from 'react-bootstrap';
 import { useSocket } from '../context/SocketContext';
+import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import ErrorHandler from '../utils/ErrorHandler';
 
 const Alerts = () => {
   const { socket, connected } = useSocket();
+  const { user } = useAuth();
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState({});
   const [message, setMessage] = useState({ type: '', text: '' });
+  const messageTimeoutRef = useRef(null);
+  const intervalRef = useRef(null);
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showBulkActions, setShowBulkActions] = useState(false);
@@ -17,6 +23,7 @@ const Alerts = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [alertsPerPage] = useState(10);
+  const [error, setError] = useState(null);
 
   const [alertStats, setAlertStats] = useState({
     total: 0,
@@ -27,14 +34,40 @@ const Alerts = () => {
     resolved: 0
   });
 
+  // Cleanup function for message timeouts
+  const clearMessageTimeout = useCallback(() => {
+    if (messageTimeoutRef.current) {
+      clearTimeout(messageTimeoutRef.current);
+      messageTimeoutRef.current = null;
+    }
+  }, []);
+
+  // Enhanced message display with auto-clear
+  const showMessage = useCallback((type, text, duration = 5000) => {
+    clearMessageTimeout();
+    setMessage({ type, text });
+    
+    if (duration > 0) {
+      messageTimeoutRef.current = setTimeout(() => {
+        setMessage({ type: '', text: '' });
+      }, duration);
+    }
+  }, [clearMessageTimeout]);
+
   // Load alerts on component mount
   useEffect(() => {
     loadAlerts();
     
     // Refresh alerts every 30 seconds
-    const interval = setInterval(loadAlerts, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    intervalRef.current = setInterval(loadAlerts, 30000);
+    
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+      clearMessageTimeout();
+    };
+  }, [clearMessageTimeout]);
 
   // WebSocket event listeners for real-time alerts
   useEffect(() => {
@@ -67,46 +100,52 @@ const Alerts = () => {
   const loadAlerts = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await api.get('/alerts', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      setError(null);
       
-      const alertsData = response.data || [];
+      const response = await api.get('/alerts');
+      
+      // Check if response.data.alerts exists (new API format)
+      const alertsData = response.data.alerts || response.data || [];
+      
+      if (!Array.isArray(alertsData)) {
+        throw new Error('Invalid alerts data format received from server');
+      }
+      
       setAlerts(alertsData);
       updateAlertStats(alertsData);
       
+      // Also update stats from API if provided
+      if (response.data.statistics) {
+        const apiStats = response.data.statistics;
+        setAlertStats({
+          total: apiStats.totalAlerts || 0,
+          critical: apiStats.criticalAlerts || 0,
+          warning: apiStats.warningAlerts || 0,
+          info: apiStats.infoAlerts || 0,
+          acknowledged: apiStats.acknowledgedAlerts || 0,
+          resolved: apiStats.unacknowledgedAlerts || 0
+        });
+      }
+      
     } catch (error) {
       console.error('Error loading alerts:', error);
-      setMessage({ type: 'danger', text: 'Failed to load alerts' });
+      const errorMessage = ErrorHandler.getErrorMessage(error);
+      setError(`Failed to load alerts: ${errorMessage}`);
+      showMessage('danger', `Failed to load alerts: ${errorMessage}`);
       
-      // Set mock data if API fails
-      const mockAlerts = generateMockAlerts();
-      setAlerts(mockAlerts);
-      updateAlertStats(mockAlerts);
+      // Set empty state on error
+      setAlerts([]);
+      setAlertStats({
+        total: 0,
+        critical: 0,
+        warning: 0,
+        info: 0,
+        acknowledged: 0,
+        resolved: 0
+      });
     } finally {
       setLoading(false);
     }
-  };
-
-  const generateMockAlerts = () => {
-    const devices = ['192.168.1.1', '192.168.1.10', '192.168.1.50', '192.168.1.100'];
-    const severities = ['critical', 'warning', 'info'];
-    const types = ['CPU Usage High', 'Memory Usage High', 'Disk Space Low', 'Interface Down', 'Response Time High', 'Device Unreachable'];
-    
-    return Array.from({ length: 15 }, (_, index) => ({
-      _id: `alert_${index}`,
-      severity: severities[Math.floor(Math.random() * severities.length)],
-      type: types[Math.floor(Math.random() * types.length)],
-      message: `Alert message for device ${devices[Math.floor(Math.random() * devices.length)]}`,
-      deviceIp: devices[Math.floor(Math.random() * devices.length)],
-      status: Math.random() > 0.7 ? 'resolved' : Math.random() > 0.5 ? 'acknowledged' : 'active',
-      timestamp: new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000),
-      value: Math.floor(Math.random() * 100),
-      threshold: 80,
-      acknowledgedBy: Math.random() > 0.5 ? 'admin' : null,
-      acknowledgedAt: Math.random() > 0.5 ? new Date() : null
-    }));
   };
 
   const updateAlertStats = (alertsData) => {
@@ -122,63 +161,104 @@ const Alerts = () => {
   };
 
   const acknowledgeAlert = async (alertId) => {
+    if (!alertId) {
+      showMessage('danger', 'Invalid alert ID');
+      return;
+    }
+
     try {
-      const token = localStorage.getItem('token');
-      await api.put(`/alerts/${alertId}/acknowledge`, {}, {
-        headers: { 'Authorization': `Bearer ${token}` }
+      setActionLoading(prev => ({ ...prev, [`ack_${alertId}`]: true }));
+      setError(null);
+      
+      await api.post('/alerts/acknowledge', {
+        alertIds: [alertId],
+        acknowledgedBy: user?.username || 'Unknown User'
       });
       
       setAlerts(prev => prev.map(alert => 
-        alert._id === alertId 
-          ? { ...alert, status: 'acknowledged', acknowledgedBy: 'current_user', acknowledgedAt: new Date() }
+        alert._id === alertId || alert.alertId === alertId
+          ? { 
+              ...alert, 
+              acknowledged: true,
+              acknowledgedBy: user?.username || 'Unknown User', 
+              acknowledgedAt: new Date().toISOString()
+            }
           : alert
       ));
       
-      setMessage({ type: 'success', text: 'Alert acknowledged successfully' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      showMessage('success', 'Alert acknowledged successfully');
       
     } catch (error) {
       console.error('Error acknowledging alert:', error);
-      setMessage({ type: 'danger', text: 'Failed to acknowledge alert' });
+      const errorMessage = ErrorHandler.getErrorMessage(error);
+      showMessage('danger', `Failed to acknowledge alert: ${errorMessage}`);
+    } finally {
+      setActionLoading(prev => ({ ...prev, [`ack_${alertId}`]: false }));
     }
   };
 
   const resolveAlert = async (alertId) => {
+    if (!alertId) {
+      showMessage('danger', 'Invalid alert ID');
+      return;
+    }
+
     try {
-      const token = localStorage.getItem('token');
-      await api.put(`/alerts/${alertId}/resolve`, {}, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      setActionLoading(prev => ({ ...prev, [`resolve_${alertId}`]: true }));
+      setError(null);
+      
+      await api.put(`/alerts/${alertId}/resolve`);
       
       setAlerts(prev => prev.map(alert => 
-        alert._id === alertId 
-          ? { ...alert, status: 'resolved', resolvedAt: new Date() }
+        alert._id === alertId || alert.alertId === alertId
+          ? { 
+              ...alert, 
+              status: 'resolved', 
+              resolvedAt: new Date().toISOString(),
+              resolvedBy: user?.username || 'Unknown User'
+            }
           : alert
       ));
       
-      setMessage({ type: 'success', text: 'Alert resolved successfully' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      showMessage('success', 'Alert resolved successfully');
       
     } catch (error) {
       console.error('Error resolving alert:', error);
-      setMessage({ type: 'danger', text: 'Failed to resolve alert' });
+      const errorMessage = ErrorHandler.getErrorMessage(error);
+      showMessage('danger', `Failed to resolve alert: ${errorMessage}`);
+    } finally {
+      setActionLoading(prev => ({ ...prev, [`resolve_${alertId}`]: false }));
     }
   };
 
   const deleteAlert = async (alertId) => {
+    if (!alertId) {
+      showMessage('danger', 'Invalid alert ID');
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to delete this alert? This action cannot be undone.')) {
+      return;
+    }
+
     try {
-      const token = localStorage.getItem('token');
-      await api.delete(`/alerts/${alertId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      setActionLoading(prev => ({ ...prev, [`delete_${alertId}`]: true }));
+      setError(null);
       
-      setAlerts(prev => prev.filter(alert => alert._id !== alertId));
-      setMessage({ type: 'success', text: 'Alert deleted successfully' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      await api.delete(`/alerts/${alertId}`);
+      
+      setAlerts(prev => prev.filter(alert => 
+        alert._id !== alertId && alert.alertId !== alertId
+      ));
+      
+      showMessage('success', 'Alert deleted successfully');
       
     } catch (error) {
       console.error('Error deleting alert:', error);
-      setMessage({ type: 'danger', text: 'Failed to delete alert' });
+      const errorMessage = ErrorHandler.getErrorMessage(error);
+      showMessage('danger', `Failed to delete alert: ${errorMessage}`);
+    } finally {
+      setActionLoading(prev => ({ ...prev, [`delete_${alertId}`]: false }));
     }
   };
 
@@ -240,24 +320,59 @@ const Alerts = () => {
   const totalPages = Math.ceil(filteredAlerts.length / alertsPerPage);
 
   const handleBulkAction = async (action) => {
+    if (!selectedAlerts.length) {
+      showMessage('warning', 'No alerts selected for bulk action');
+      return;
+    }
+
+    if (action === 'delete' && !window.confirm(`Are you sure you want to delete ${selectedAlerts.length} alert(s)? This action cannot be undone.`)) {
+      return;
+    }
+
     try {
-      const token = localStorage.getItem('token');
+      setActionLoading(prev => ({ ...prev, [`bulk_${action}`]: true }));
+      setError(null);
       
-      for (const alertId of selectedAlerts) {
-        if (action === 'acknowledge') {
-          await acknowledgeAlert(alertId);
-        } else if (action === 'resolve') {
-          await resolveAlert(alertId);
-        } else if (action === 'delete') {
-          await deleteAlert(alertId);
-        }
+      if (action === 'acknowledge') {
+        await api.post('/alerts/acknowledge', {
+          alertIds: selectedAlerts,
+          acknowledgedBy: user?.username || 'Unknown User'
+        });
+        
+        setAlerts(prev => prev.map(alert => 
+          selectedAlerts.includes(alert._id) || selectedAlerts.includes(alert.alertId)
+            ? { 
+                ...alert, 
+                acknowledged: true,
+                acknowledgedBy: user?.username || 'Unknown User', 
+                acknowledgedAt: new Date().toISOString()
+              }
+            : alert
+        ));
+        showMessage('success', `${selectedAlerts.length} alert(s) acknowledged successfully`);
+        
+      } else if (action === 'delete') {
+        // For bulk delete, we need to handle it differently
+        const deletePromises = selectedAlerts.map(alertId => 
+          api.delete(`/alerts/${alertId}`)
+        );
+        await Promise.allSettled(deletePromises);
+        
+        setAlerts(prev => prev.filter(alert => 
+          !selectedAlerts.includes(alert._id) && !selectedAlerts.includes(alert.alertId)
+        ));
+        showMessage('success', `${selectedAlerts.length} alert(s) deleted successfully`);
       }
       
       setSelectedAlerts([]);
       setShowBulkActions(false);
       
     } catch (error) {
-      setMessage({ type: 'danger', text: `Failed to perform bulk ${action}` });
+      console.error(`Error performing bulk ${action}:`, error);
+      const errorMessage = ErrorHandler.getErrorMessage(error);
+      showMessage('danger', `Failed to perform bulk ${action}: ${errorMessage}`);
+    } finally {
+      setActionLoading(prev => ({ ...prev, [`bulk_${action}`]: false }));
     }
   };
 
@@ -269,10 +384,9 @@ const Alerts = () => {
           <div className="d-flex justify-content-between align-items-center">
             <div>
               <h2 className="text-white mb-1">
-                <i className="fas fa-bell me-2 text-warning"></i>
+                <i className="fas fa-bell me-2 text-primary"></i>
                 Network Alerts
               </h2>
-              <p className="text-muted mb-0">Monitor and manage network alerts and notifications</p>
             </div>
             <div className="d-flex align-items-center">
               <Badge bg={connected ? 'success' : 'danger'} className="me-3">
@@ -500,26 +614,41 @@ const Alerts = () => {
                                 <Button
                                   variant="outline-warning"
                                   size="sm"
+                                  disabled={actionLoading[`ack_${alert._id}`]}
                                   onClick={() => acknowledgeAlert(alert._id)}
                                 >
-                                  <i className="fas fa-check"></i>
+                                  {actionLoading[`ack_${alert._id}`] ? (
+                                    <Spinner as="span" animation="border" size="sm" />
+                                  ) : (
+                                    <i className="fas fa-check"></i>
+                                  )}
                                 </Button>
                               )}
                               {(alert.status === 'active' || alert.status === 'acknowledged') && (
                                 <Button
                                   variant="outline-success"
                                   size="sm"
+                                  disabled={actionLoading[`resolve_${alert._id}`]}
                                   onClick={() => resolveAlert(alert._id)}
                                 >
-                                  <i className="fas fa-check-double"></i>
+                                  {actionLoading[`resolve_${alert._id}`] ? (
+                                    <Spinner as="span" animation="border" size="sm" />
+                                  ) : (
+                                    <i className="fas fa-check-double"></i>
+                                  )}
                                 </Button>
                               )}
                               <Button
                                 variant="outline-danger"
                                 size="sm"
+                                disabled={actionLoading[`delete_${alert._id}`]}
                                 onClick={() => deleteAlert(alert._id)}
                               >
-                                <i className="fas fa-trash"></i>
+                                {actionLoading[`delete_${alert._id}`] ? (
+                                  <Spinner as="span" animation="border" size="sm" />
+                                ) : (
+                                  <i className="fas fa-trash"></i>
+                                )}
                               </Button>
                             </div>
                           </td>
@@ -651,17 +780,39 @@ const Alerts = () => {
         <Modal.Body className="bg-dark text-white">
           <p>Selected {selectedAlerts.length} alert(s). Choose an action:</p>
           <div className="d-grid gap-2">
-            <Button variant="warning" onClick={() => handleBulkAction('acknowledge')}>
-              <i className="fas fa-check me-2"></i>
-              Acknowledge All
+            <Button 
+              variant="warning" 
+              disabled={actionLoading.bulk_acknowledge}
+              onClick={() => handleBulkAction('acknowledge')}
+            >
+              {actionLoading.bulk_acknowledge ? (
+                <>
+                  <Spinner as="span" animation="border" size="sm" className="me-2" />
+                  Acknowledging...
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-check me-2"></i>
+                  Acknowledge All
+                </>
+              )}
             </Button>
-            <Button variant="success" onClick={() => handleBulkAction('resolve')}>
-              <i className="fas fa-check-double me-2"></i>
-              Resolve All
-            </Button>
-            <Button variant="danger" onClick={() => handleBulkAction('delete')}>
-              <i className="fas fa-trash me-2"></i>
-              Delete All
+            <Button 
+              variant="danger" 
+              disabled={actionLoading.bulk_delete}
+              onClick={() => handleBulkAction('delete')}
+            >
+              {actionLoading.bulk_delete ? (
+                <>
+                  <Spinner as="span" animation="border" size="sm" className="me-2" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-trash me-2"></i>
+                  Delete All
+                </>
+              )}
             </Button>
           </div>
         </Modal.Body>

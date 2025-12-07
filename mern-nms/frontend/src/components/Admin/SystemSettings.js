@@ -140,7 +140,7 @@ const SystemSettings = () => {
       const token = localStorage.getItem('token');
       const headers = { 'Authorization': `Bearer ${token}` };
       
-      const response = await api.get('/admin/system/info', { headers });
+      const response = await api.get('/admin/system-info', { headers });
       setSystemInfo(response.data || systemInfo);
     } catch (error) {
       console.error('Error loading system info:', error);
@@ -236,10 +236,9 @@ const SystemSettings = () => {
           <div className="d-flex justify-content-between align-items-center">
             <div>
               <h2 className="text-white mb-1">
-                <i className="fas fa-cogs me-2 text-warning"></i>
+                <i className="fas fa-cogs me-2 text-primary"></i>
                 System Settings
               </h2>
-              <p className="text-muted mb-0">Configure system parameters and preferences</p>
             </div>
             <div className="d-flex align-items-center">
               <Badge bg={connected ? 'success' : 'danger'} className="me-3">

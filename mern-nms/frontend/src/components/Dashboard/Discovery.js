@@ -167,7 +167,14 @@ const Discovery = () => {
     try {
       const token = localStorage.getItem('token');
       await api.post('/devices', {
-        ...device,
+        name: device.name || device.hostname || `Device-${device.ip}`,
+        ipAddress: device.ip,
+        deviceType: device.type || device.deviceType || 'unknown',
+        vendor: device.vendor || 'Unknown',
+        model: device.model || '',
+        macAddress: device.mac || device.macAddress || '',
+        status: device.status || 'unknown',
+        discoveredBy: 'manual',
         monitoringEnabled: true
       }, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -221,10 +228,9 @@ const Discovery = () => {
           <div className="d-flex justify-content-between align-items-center">
             <div>
               <h2 className="text-white mb-1">
-                <i className="fas fa-search me-2 text-primary"></i>
+                <i className="fas fa-search-plus me-2 text-primary"></i>
                 Network Discovery
               </h2>
-              <p className="text-muted mb-0">Discover and scan network devices automatically</p>
             </div>
             <div className="d-flex align-items-center">
               <Badge bg={connected ? 'success' : 'danger'} className="me-3">

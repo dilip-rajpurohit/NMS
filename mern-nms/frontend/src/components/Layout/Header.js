@@ -1,11 +1,53 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar, Nav, Container, NavDropdown, Badge, Dropdown } from 'react-bootstrap';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
+import * as feather from 'feather-icons';
 
 const Header = ({ activeSection, onSectionChange }) => {
   const { user, logout } = useAuth();
   const { connected, alerts, deviceCount } = useSocket();
+  const [isDarkTheme, setIsDarkTheme] = useState(true);
+
+  useEffect(() => {
+    // Initialize theme from user preference or localStorage
+    if (user && user.isDarkTheme !== undefined) {
+      setIsDarkTheme(user.isDarkTheme);
+    } else {
+      const savedTheme = localStorage.getItem('isDarkTheme');
+      if (savedTheme !== null) {
+        setIsDarkTheme(JSON.parse(savedTheme));
+      }
+    }
+  }, [user]);
+
+  useEffect(() => {
+    // Apply theme changes
+    const html = document.documentElement;
+    const body = document.body;
+    
+    if (isDarkTheme) {
+      html.classList.remove('light-theme');
+      html.classList.add('dark-theme');
+      body.classList.remove('light-theme');
+      body.classList.add('dark-theme');
+    } else {
+      html.classList.remove('dark-theme');
+      html.classList.add('light-theme');
+      body.classList.remove('dark-theme');
+      body.classList.add('light-theme');
+    }
+
+    // Re-initialize feather icons after theme change
+    setTimeout(() => feather.replace(), 100);
+    
+    // Save theme preference
+    localStorage.setItem('isDarkTheme', JSON.stringify(isDarkTheme));
+  }, [isDarkTheme]);
+
+  const toggleTheme = () => {
+    setIsDarkTheme(!isDarkTheme);
+  };
 
   const handleLogout = () => {
     logout();
@@ -14,16 +56,20 @@ const Header = ({ activeSection, onSectionChange }) => {
   const isAdmin = user?.role === 'admin';
 
   return (
-    <Navbar bg="dark" variant="dark" expand="lg" className="shadow-sm sticky-top" style={{ backgroundColor: '#1a1a1a !important' }}>
+    <Navbar expand="lg" className="shadow-sm sticky-top" style={{ 
+      backgroundColor: 'var(--sidebar-background)',
+      borderBottom: '1px solid var(--border-color)',
+      color: 'var(--text-primary)'
+    }}>
       <Container fluid>
         <Navbar.Brand 
           href="#" 
           className="fw-bold d-flex align-items-center"
           onClick={() => onSectionChange('dashboard')}
-          style={{ cursor: 'pointer' }}
+          style={{ cursor: 'pointer', color: 'var(--text-primary)' }}
         >
-          <i className="fas fa-network-wired me-2 text-primary"></i>
-          <span className="text-white">NMS</span>
+          <i data-feather="activity" style={{ color: 'var(--primary-blue)', width: '20px', height: '20px', marginRight: '8px' }}></i>
+          <span style={{ color: 'var(--primary-blue)', fontWeight: 'bold' }}>NetWatch</span>
         </Navbar.Brand>
 
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
@@ -34,18 +80,18 @@ const Header = ({ activeSection, onSectionChange }) => {
             <Nav.Link 
               className={`px-3 ${activeSection === 'dashboard' ? 'active bg-primary rounded' : ''}`}
               onClick={() => onSectionChange('dashboard')}
-              style={{ cursor: 'pointer' }}
+              style={{ cursor: 'pointer', color: 'var(--text-primary)' }}
             >
-              <i className="fas fa-chart-line me-1"></i>
+              <i data-feather="bar-chart-2" style={{ width: '16px', height: '16px', marginRight: '4px' }}></i>
               Dashboard
             </Nav.Link>
 
             <Nav.Link 
               className={`px-3 ${activeSection === 'topology' ? 'active bg-primary rounded' : ''}`}
               onClick={() => onSectionChange('topology')}
-              style={{ cursor: 'pointer' }}
+              style={{ cursor: 'pointer', color: 'var(--text-primary)' }}
             >
-              <i className="fas fa-project-diagram me-1"></i>
+              <i data-feather="share-2" style={{ width: '16px', height: '16px', marginRight: '4px' }}></i>
               Topology
             </Nav.Link>
 
@@ -108,10 +154,38 @@ const Header = ({ activeSection, onSectionChange }) => {
 
           {/* Right side items */}
           <Nav className="ms-auto d-flex align-items-center">
+            {/* Theme Toggle */}
+            <Nav.Item className="me-3">
+              <button
+                className="btn btn-outline-light btn-sm d-flex align-items-center"
+                onClick={toggleTheme}
+                title={isDarkTheme ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                style={{
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'transparent',
+                  color: 'var(--text-primary)',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontSize: '14px'
+                }}
+              >
+                <i 
+                  data-feather={isDarkTheme ? 'sun' : 'moon'} 
+                  style={{ 
+                    width: '16px', 
+                    height: '16px', 
+                    marginRight: '6px',
+                    color: 'var(--primary-blue)'
+                  }}
+                ></i>
+                {isDarkTheme ? 'Light' : 'Dark'}
+              </button>
+            </Nav.Item>
+
             {/* Connection Status */}
             <Nav.Item className="me-3">
               <span className={`badge ${connected ? 'bg-success' : 'bg-danger'}`}>
-                <i className={`fas ${connected ? 'fa-wifi' : 'fa-wifi-slash'} me-1`}></i>
+                <i data-feather={connected ? 'wifi' : 'wifi-off'} style={{ width: '14px', height: '14px', marginRight: '4px' }}></i>
                 {connected ? 'Connected' : 'Disconnected'}
               </span>
             </Nav.Item>
@@ -119,20 +193,20 @@ const Header = ({ activeSection, onSectionChange }) => {
             {/* User Dropdown */}
             <NavDropdown 
               title={
-                <span className="text-white">
-                  <i className="fas fa-user-circle me-1"></i>
+                <span style={{ color: 'var(--text-primary)' }}>
+                  <i data-feather="user" style={{ width: '16px', height: '16px', marginRight: '4px' }}></i>
                   {user?.username || 'User'}
                 </span>
               } 
               id="user-nav-dropdown"
               align="end"
             >
-              <NavDropdown.Item onClick={() => onSectionChange('profile-settings')}>
-                <i className="fas fa-user me-2"></i>Profile
+              <NavDropdown.Item onClick={() => onSectionChange('profile')}>
+                <i data-feather="user" style={{ width: '16px', height: '16px', marginRight: '8px' }}></i>Profile
               </NavDropdown.Item>
               <NavDropdown.Divider />
               <NavDropdown.Item onClick={handleLogout}>
-                <i className="fas fa-sign-out-alt me-2"></i>Logout
+                <i data-feather="log-out" style={{ width: '16px', height: '16px', marginRight: '8px' }}></i>Logout
               </NavDropdown.Item>
             </NavDropdown>
           </Nav>
